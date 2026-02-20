@@ -1,0 +1,22 @@
+auth:
+  data_dir: "~/.pico-auth"
+  access_token_expire_minutes: 15
+  refresh_token_expire_days: 7
+  issuer: "http://localhost:8100"
+  audience: "pico-bot"
+  auto_create_admin: true
+  admin_email: "admin@pico.local"
+  admin_password: "admin"
+
+database:
+  url: "sqlite+aiosqlite:///auth.db"
+  echo: false
+
+auth_client:
+  enabled: true
+  issuer: "http://localhost:8100"
+  audience: "pico-bot"
+
+fastapi:
+  title: "Pico Auth API"
+  version: "0.1.0"
