@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
-    "pico-ioc>=2.1.0",
+    "pico-ioc[yaml]>=2.1.0",
     "pico-boot>=0.1.0",
     "pico-fastapi>=0.1.0",
     "pico-sqlalchemy>=0.1.0",
