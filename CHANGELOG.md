@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ---
 
+## v0.1.3 — Remove Configurer Guard Patch (2026-02-20)
+
+### Removed
+- **DatabaseConfigurer guard patch**: Removed the monkeypatch in `local_auth_configurer.py` that guarded `AuthFastapiConfigurer.configure()` against non-FastAPI calls. No longer needed after the protocol method rename in pico-sqlalchemy and pico-fastapi.
+
+---
+
 ## v0.1.0 — Initial Release (2026-02-20)
 
 ### Added
