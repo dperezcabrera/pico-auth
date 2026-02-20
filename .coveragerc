@@ -4,6 +4,7 @@ source =
     pico_auth
 omit =
     pico_auth/main.py
+    pico_auth/_version.py
 concurrency =
     greenlet
     thread
