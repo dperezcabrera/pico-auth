@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=69.0", "wheel", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pico-auth"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Minimal JWT auth server for the pico ecosystem"
 readme = "README.md"
 license = {text = "MIT"}
@@ -95,3 +95,9 @@ commands = [
     ["coverage", "run", "-m", "pytest", "tests/", "-v"],
     ["coverage", "report", "-m"],
 ]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
+fallback_version = "0.1.0"
+write_to = "pico_auth/_version.py"
