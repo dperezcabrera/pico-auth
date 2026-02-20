@@ -146,5 +146,6 @@ nav:
   - Help:
     - FAQ: faq.md
     - Ecosystem: ecosystem.md
+    - Docker E2E Test: docker-e2e-test.md
   - AI Coding Skills: skills.md
   - Changelog: CHANGELOG.md
