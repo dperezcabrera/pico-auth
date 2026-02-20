@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pico-auth"
+version = "0.1.0"
+description = "Minimal JWT auth server for the pico ecosystem"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    { name = "David Perez" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: Internet :: WWW/HTTP",
+]
+dependencies = [
+    "pico-ioc>=2.1.0",
+    "pico-boot>=0.1.0",
+    "pico-fastapi>=0.1.0",
+    "pico-sqlalchemy>=0.1.0",
+    "pico-client-auth>=0.1.0",
+    "python-jose[cryptography]>=3.3",
+    "bcrypt>=4.0",
+    "aiosqlite>=0.19",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "httpx>=0.24",
+    "ruff",
+    "tox",
+]
+docs = [
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+    "mkdocs-minify-plugin",
+    "mkdocs-git-revision-date-localized-plugin",
+]
+
+[project.urls]
+Homepage = "https://github.com/dperezcabrera/pico-auth"
+Documentation = "https://dperezcabrera.github.io/pico-auth/"
+Repository = "https://github.com/dperezcabrera/pico-auth"
+Issues = "https://github.com/dperezcabrera/pico-auth/issues"
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.coverage.run]
+source = ["pico_auth"]
+omit = ["pico_auth/main.py"]
+concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 95
+
+[tool.tox]
+env_list = ["py311", "py312", "py313", "py314", "cov"]
+
+[tool.tox.env_run_base]
+deps = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "httpx>=0.24",
+]
+commands = [["pytest", "tests/", "-v"]]
+
+[tool.tox.env.cov]
+deps = [
+    "{[env_run_base]deps}",
+    "coverage[toml]",
+]
+commands = [
+    ["coverage", "run", "-m", "pytest", "tests/", "-v"],
+    ["coverage", "report", "-m"],
+]
