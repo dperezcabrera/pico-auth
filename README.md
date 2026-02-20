@@ -1,7 +1,10 @@
 # Pico-Auth
 
+[![PyPI](https://img.shields.io/pypi/v/pico-auth.svg)](https://pypi.org/project/pico-auth/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dperezcabrera/pico-auth)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![CI](https://github.com/dperezcabrera/pico-auth/actions/workflows/ci.yml/badge.svg)
+![CI (tox matrix)](https://github.com/dperezcabrera/pico-auth/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/dperezcabrera/pico-auth/branch/main/graph/badge.svg)](https://codecov.io/gh/dperezcabrera/pico-auth)
 [![Docs](https://img.shields.io/badge/Docs-pico--auth-blue?style=flat&logo=readthedocs&logoColor=white)](https://dperezcabrera.github.io/pico-auth/)
 
 **Minimal JWT auth server for the Pico ecosystem.**
