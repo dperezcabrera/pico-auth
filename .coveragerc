@@ -1,0 +1,20 @@
+[run]
+branch = True
+source =
+    pico_auth
+omit =
+    pico_auth/main.py
+concurrency =
+    greenlet
+    thread
+
+[paths]
+pico_auth =
+    pico_auth
+    .tox/*/lib/*/site-packages/pico_auth
+    .tox/*/site-packages/pico_auth
+    */site-packages/pico_auth
+
+[report]
+show_missing = True
+fail_under = 95
