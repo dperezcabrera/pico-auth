@@ -18,6 +18,25 @@ class User(AppBase):
     last_login_at: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
 
+class Group(AppBase):
+    __tablename__ = "groups"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    description: Mapped[str] = mapped_column(String(500), default="")
+    org_id: Mapped[str] = mapped_column(String(100), index=True)
+    created_at: Mapped[str] = mapped_column(String(50))
+    updated_at: Mapped[str] = mapped_column(String(50))
+
+
+class GroupMember(AppBase):
+    __tablename__ = "group_members"
+
+    group_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True, index=True)
+    joined_at: Mapped[str] = mapped_column(String(50))
+
+
 class RefreshToken(AppBase):
     __tablename__ = "refresh_tokens"
 

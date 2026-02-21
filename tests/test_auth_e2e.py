@@ -1,8 +1,10 @@
 """End-to-end tests for pico-auth -- full HTTP flows."""
 
 import pytest
+from jose import jwt
 
 API = "/api/v1/auth"
+GROUPS_API = "/api/v1/groups"
 
 
 # ===================================================================
@@ -397,3 +399,191 @@ class TestOIDCDiscovery:
         assert data["issuer"] == "http://test"
         assert "jwks_uri" in data
         assert "token_endpoint" in data
+
+
+# ===================================================================
+# Groups
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestGroups:
+    async def _get_admin_token(self, client, container):
+        from pico_auth.service import AuthService
+
+        service = container.get(AuthService)
+        await service.ensure_admin("groupadmin@test.com", "adminpass")
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "groupadmin@test.com", "password": "adminpass"},
+        )
+        return resp.json()["access_token"]
+
+    async def _get_viewer_token(self, client, email="groupviewer@test.com"):
+        await client.post(
+            f"{API}/register",
+            json={"email": email, "password": "pass"},
+        )
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": email, "password": "pass"},
+        )
+        return resp.json()["access_token"]
+
+    def _auth(self, token):
+        return {"Authorization": f"Bearer {token}"}
+
+    async def test_create_group(self, client, container):
+        token = await self._get_admin_token(client, container)
+        resp = await client.post(
+            GROUPS_API,
+            json={"name": "Team Alpha", "description": "The alpha team"},
+            headers=self._auth(token),
+        )
+        data = resp.json()
+        assert "error" not in data
+        assert data["name"] == "Team Alpha"
+        assert "id" in data
+
+    async def test_create_duplicate_group(self, client, container):
+        token = await self._get_admin_token(client, container)
+        await client.post(
+            GROUPS_API,
+            json={"name": "Dup Group"},
+            headers=self._auth(token),
+        )
+        resp = await client.post(
+            GROUPS_API,
+            json={"name": "Dup Group"},
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+
+    async def test_list_groups(self, client, container):
+        token = await self._get_admin_token(client, container)
+        await client.post(
+            GROUPS_API,
+            json={"name": "List Group"},
+            headers=self._auth(token),
+        )
+        resp = await client.get(GROUPS_API, headers=self._auth(token))
+        data = resp.json()
+        assert "groups" in data
+        assert data["total"] >= 1
+
+    async def test_get_group_detail(self, client, container):
+        token = await self._get_admin_token(client, container)
+        create_resp = await client.post(
+            GROUPS_API,
+            json={"name": "Detail Group"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        resp = await client.get(f"{GROUPS_API}/{group_id}", headers=self._auth(token))
+        data = resp.json()
+        assert data["name"] == "Detail Group"
+        assert "members" in data
+
+    async def test_update_group(self, client, container):
+        token = await self._get_admin_token(client, container)
+        create_resp = await client.post(
+            GROUPS_API,
+            json={"name": "Old Name"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        resp = await client.put(
+            f"{GROUPS_API}/{group_id}",
+            json={"name": "New Name", "description": "Updated"},
+            headers=self._auth(token),
+        )
+        data = resp.json()
+        assert data["name"] == "New Name"
+        assert data["description"] == "Updated"
+
+    async def test_delete_group(self, client, container):
+        token = await self._get_admin_token(client, container)
+        create_resp = await client.post(
+            GROUPS_API,
+            json={"name": "Delete Me"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        resp = await client.delete(f"{GROUPS_API}/{group_id}", headers=self._auth(token))
+        assert resp.json()["message"] == "Group deleted"
+        # Verify deleted
+        resp = await client.get(f"{GROUPS_API}/{group_id}", headers=self._auth(token))
+        assert "error" in resp.json()
+
+    async def test_add_and_remove_member(self, client, container):
+        token = await self._get_admin_token(client, container)
+        # Create a group
+        create_resp = await client.post(
+            GROUPS_API,
+            json={"name": "Member Group"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        # Register a user to add
+        reg_resp = await client.post(
+            f"{API}/register",
+            json={"email": "member@test.com", "password": "pass"},
+        )
+        user_id = reg_resp.json()["id"]
+        # Add member
+        resp = await client.post(
+            f"{GROUPS_API}/{group_id}/members",
+            json=user_id,
+            headers=self._auth(token),
+        )
+        assert resp.json()["message"] == "Member added"
+        # Verify member in group detail
+        detail = await client.get(f"{GROUPS_API}/{group_id}", headers=self._auth(token))
+        member_ids = [m["user_id"] for m in detail.json()["members"]]
+        assert user_id in member_ids
+        # Remove member
+        resp = await client.delete(
+            f"{GROUPS_API}/{group_id}/members/{user_id}",
+            headers=self._auth(token),
+        )
+        assert resp.json()["message"] == "Member removed"
+
+    async def test_groups_in_jwt(self, client, container):
+        token = await self._get_admin_token(client, container)
+        # Create group
+        create_resp = await client.post(
+            GROUPS_API,
+            json={"name": "JWT Group"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        # Register and get user id
+        reg_resp = await client.post(
+            f"{API}/register",
+            json={"email": "jwtgroup@test.com", "password": "pass"},
+        )
+        user_id = reg_resp.json()["id"]
+        # Add to group
+        await client.post(
+            f"{GROUPS_API}/{group_id}/members",
+            json=user_id,
+            headers=self._auth(token),
+        )
+        # Login as that user
+        login_resp = await client.post(
+            f"{API}/login",
+            json={"email": "jwtgroup@test.com", "password": "pass"},
+        )
+        access_token = login_resp.json()["access_token"]
+        # Decode and check groups claim
+        claims = jwt.get_unverified_claims(access_token)
+        assert group_id in claims["groups"]
+
+    async def test_viewer_cannot_create_group(self, client, container):
+        viewer_token = await self._get_viewer_token(client)
+        resp = await client.post(
+            GROUPS_API,
+            json={"name": "Nope"},
+            headers=self._auth(viewer_token),
+        )
+        assert resp.status_code == 403

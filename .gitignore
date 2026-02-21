@@ -58,9 +58,6 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# Release notes (local only)
-releases/
-
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -81,3 +78,4 @@ dmypy.json
 # pico-auth specific
 *.pem
 auth.db
+pico_client_auth_wheel/

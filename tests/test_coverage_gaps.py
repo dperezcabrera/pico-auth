@@ -270,6 +270,141 @@ class TestEnsureAdmin:
 # ===================================================================
 
 
+# ===================================================================
+# Groups: coverage gaps (error paths, edge cases)
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestGroupServiceCoverage:
+    async def _admin_login(self, client, service):
+        await service.ensure_admin("grpcov@test.com", "adminpass")
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "grpcov@test.com", "password": "adminpass"},
+        )
+        return resp.json()["access_token"]
+
+    def _auth(self, token):
+        return {"Authorization": f"Bearer {token}"}
+
+    async def test_update_nonexistent_group(self, client, service):
+        token = await self._admin_login(client, service)
+        resp = await client.put(
+            "/api/v1/groups/nonexistent",
+            json={"name": "Nope"},
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+        assert "not found" in resp.json()["error"].lower()
+
+    async def test_delete_nonexistent_group(self, client, service):
+        token = await self._admin_login(client, service)
+        resp = await client.delete(
+            "/api/v1/groups/nonexistent",
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+
+    async def test_add_member_nonexistent_group(self, client, service):
+        token = await self._admin_login(client, service)
+        resp = await client.post(
+            "/api/v1/groups/nonexistent/members",
+            json="some-user-id",
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+
+    async def test_add_member_nonexistent_user(self, client, service):
+        token = await self._admin_login(client, service)
+        # Create a real group
+        create_resp = await client.post(
+            "/api/v1/groups",
+            json={"name": "CovGroup"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        # Add nonexistent user
+        resp = await client.post(
+            f"/api/v1/groups/{group_id}/members",
+            json="nonexistent-user",
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+        assert "not found" in resp.json()["error"].lower()
+
+    async def test_add_duplicate_member(self, client, service):
+        token = await self._admin_login(client, service)
+        # Create group
+        create_resp = await client.post(
+            "/api/v1/groups",
+            json={"name": "DupMemberGroup"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        # Register user
+        reg_resp = await client.post(
+            f"{API}/register",
+            json={"email": "dupmem@cov.com", "password": "pass"},
+        )
+        user_id = reg_resp.json()["id"]
+        # Add once
+        await client.post(
+            f"/api/v1/groups/{group_id}/members",
+            json=user_id,
+            headers=self._auth(token),
+        )
+        # Add again → error
+        resp = await client.post(
+            f"/api/v1/groups/{group_id}/members",
+            json=user_id,
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+        assert "already" in resp.json()["error"].lower()
+
+    async def test_remove_nonexistent_member(self, client, service):
+        token = await self._admin_login(client, service)
+        # Create group
+        create_resp = await client.post(
+            "/api/v1/groups",
+            json={"name": "RemNonGroup"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        resp = await client.delete(
+            f"/api/v1/groups/{group_id}/members/nonexistent",
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+
+    async def test_get_members_nonexistent_group(self, client, service):
+        token = await self._admin_login(client, service)
+        resp = await client.get(
+            "/api/v1/groups/nonexistent",
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+
+    async def test_update_group_partial_name_only(self, client, service):
+        token = await self._admin_login(client, service)
+        create_resp = await client.post(
+            "/api/v1/groups",
+            json={"name": "PartialUpdate", "description": "Original"},
+            headers=self._auth(token),
+        )
+        group_id = create_resp.json()["id"]
+        # Update only name, not description
+        resp = await client.put(
+            f"/api/v1/groups/{group_id}",
+            json={"name": "NewPartial"},
+            headers=self._auth(token),
+        )
+        data = resp.json()
+        assert data["name"] == "NewPartial"
+        assert data["description"] == "Original"
+
+
 class TestPasswordService:
     def test_verify_malformed_hash_returns_false(self):
         svc = PasswordService()
