@@ -4,7 +4,7 @@ from pico_ioc import component
 from pico_sqlalchemy import SessionManager
 from sqlalchemy import delete, select
 
-from pico_auth.models import RefreshToken, User
+from pico_auth.models import Group, GroupMember, RefreshToken, User
 
 
 @component
@@ -57,6 +57,84 @@ class UserRepository:
             if user:
                 user.last_login_at = timestamp
                 await session.flush()
+
+
+@component
+class GroupRepository:
+    """Data access for Group and GroupMember entities."""
+
+    def __init__(self, sm: SessionManager):
+        self._sm = sm
+
+    async def find_by_id(self, group_id: str) -> Group | None:
+        async with self._sm.transaction() as session:
+            return await session.get(Group, group_id)
+
+    async def find_by_name_and_org(self, name: str, org_id: str) -> Group | None:
+        async with self._sm.transaction() as session:
+            result = await session.execute(
+                select(Group).where(Group.name == name, Group.org_id == org_id),
+            )
+            return result.scalar_one_or_none()
+
+    async def save(self, group: Group) -> None:
+        async with self._sm.transaction() as session:
+            merged = await session.merge(group)
+            await session.flush()
+            group.id = merged.id
+
+    async def list_by_org(self, org_id: str) -> list[Group]:
+        async with self._sm.transaction(read_only=True) as session:
+            result = await session.execute(
+                select(Group).where(Group.org_id == org_id),
+            )
+            return list(result.scalars().all())
+
+    async def update(self, group: Group) -> None:
+        async with self._sm.transaction() as session:
+            await session.merge(group)
+            await session.flush()
+
+    async def delete(self, group_id: str) -> None:
+        async with self._sm.transaction() as session:
+            await session.execute(
+                delete(GroupMember).where(GroupMember.group_id == group_id),
+            )
+            await session.execute(
+                delete(Group).where(Group.id == group_id),
+            )
+
+    async def add_member(self, member: GroupMember) -> None:
+        async with self._sm.transaction() as session:
+            await session.merge(member)
+            await session.flush()
+
+    async def remove_member(self, group_id: str, user_id: str) -> None:
+        async with self._sm.transaction() as session:
+            await session.execute(
+                delete(GroupMember).where(
+                    GroupMember.group_id == group_id,
+                    GroupMember.user_id == user_id,
+                ),
+            )
+
+    async def find_member(self, group_id: str, user_id: str) -> GroupMember | None:
+        async with self._sm.transaction() as session:
+            return await session.get(GroupMember, (group_id, user_id))
+
+    async def list_members(self, group_id: str) -> list[GroupMember]:
+        async with self._sm.transaction(read_only=True) as session:
+            result = await session.execute(
+                select(GroupMember).where(GroupMember.group_id == group_id),
+            )
+            return list(result.scalars().all())
+
+    async def get_group_ids_for_user(self, user_id: str) -> list[str]:
+        async with self._sm.transaction(read_only=True) as session:
+            result = await session.execute(
+                select(GroupMember.group_id).where(GroupMember.user_id == user_id),
+            )
+            return list(result.scalars().all())
 
 
 @component

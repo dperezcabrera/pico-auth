@@ -40,3 +40,23 @@ class InsufficientPermissionsError(AuthError):
 class UserSuspendedError(AuthError):
     def __init__(self):
         super().__init__("User account is suspended")
+
+
+class GroupNotFoundError(AuthError):
+    def __init__(self, group_id: str):
+        super().__init__(f"Group not found: {group_id}")
+
+
+class GroupExistsError(AuthError):
+    def __init__(self, name: str):
+        super().__init__(f"Group already exists: {name}")
+
+
+class MemberAlreadyInGroupError(AuthError):
+    def __init__(self, user_id: str, group_id: str):
+        super().__init__(f"User {user_id} is already in group {group_id}")
+
+
+class MemberNotInGroupError(AuthError):
+    def __init__(self, user_id: str, group_id: str):
+        super().__init__(f"User {user_id} is not in group {group_id}")

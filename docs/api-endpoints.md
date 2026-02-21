@@ -152,6 +152,93 @@ Update a user's role. Valid roles: `superadmin`, `org_admin`, `operator`, `viewe
 }
 ```
 
+## Group Endpoints
+
+All group endpoints are prefixed with `/api/v1/groups`.
+
+### POST /api/v1/groups
+
+Create a new group. Requires `superadmin` or `org_admin` role.
+
+**Request:**
+```json
+{
+  "name": "engineering",
+  "description": "Engineering team"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "g1a2b3c4d5e6",
+  "name": "engineering",
+  "org_id": "default"
+}
+```
+
+### GET /api/v1/groups
+
+List groups for the current user's organization.
+
+**Response:**
+```json
+{
+  "groups": [
+    {"id": "g1...", "name": "engineering", "description": "Engineering team", "org_id": "default"}
+  ],
+  "total": 1
+}
+```
+
+### GET /api/v1/groups/{group_id}
+
+Get group details with member list.
+
+**Response:**
+```json
+{
+  "id": "g1...",
+  "name": "engineering",
+  "description": "Engineering team",
+  "org_id": "default",
+  "members": [
+    {"user_id": "u1...", "joined_at": "2026-02-21T00:00:00+00:00"}
+  ]
+}
+```
+
+### PUT /api/v1/groups/{group_id}
+
+Update group name and/or description. Requires `superadmin` or `org_admin` role.
+
+**Request:**
+```json
+{
+  "name": "platform",
+  "description": "Platform engineering"
+}
+```
+
+### DELETE /api/v1/groups/{group_id}
+
+Delete a group and all its memberships. Requires `superadmin` or `org_admin` role.
+
+### POST /api/v1/groups/{group_id}/members
+
+Add a user to a group. Requires `superadmin` or `org_admin` role.
+
+**Request:**
+```json
+"user-id-here"
+```
+
+### DELETE /api/v1/groups/{group_id}/members/{user_id}
+
+Remove a user from a group. Requires `superadmin` or `org_admin` role.
+
+---
+
 ## Error Responses
 
 All errors return HTTP 200 with an error field:
