@@ -10,3 +10,4 @@ build/
 tests/
 docs/
 *.db
+pico_client_auth_wheel/

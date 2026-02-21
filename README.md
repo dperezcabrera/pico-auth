@@ -14,6 +14,7 @@ Pico-Auth is a ready-to-run authentication server built on top of the [pico-fram
 - **RS256 JWT tokens** with auto-generated RSA key pairs
 - **Refresh token rotation** with SHA-256 hashed storage
 - **RBAC** with four built-in roles: `superadmin`, `org_admin`, `operator`, `viewer`
+- **Group management** with CRUD API, membership, and `groups` JWT claim
 - **OIDC discovery** endpoints (`.well-known/openid-configuration`, JWKS)
 - **Bcrypt password hashing** (72-byte input limit enforced)
 - **Zero-config startup** with auto-created admin user
@@ -29,11 +30,11 @@ Pico-Auth uses the full Pico stack with dependency injection:
 | Layer | Component | Decorator |
 |-------|-----------|-----------|
 | Config | `AuthSettings` | `@configured(prefix="auth")` |
-| Models | `User`, `RefreshToken` | SQLAlchemy `AppBase` |
-| Repository | `UserRepository`, `RefreshTokenRepository` | `@component` |
-| Service | `AuthService` | `@component` |
+| Models | `User`, `RefreshToken`, `Group`, `GroupMember` | SQLAlchemy `AppBase` |
+| Repository | `UserRepository`, `RefreshTokenRepository`, `GroupRepository` | `@component` |
+| Service | `AuthService`, `GroupService` | `@component` |
 | Security | `JWTProvider`, `PasswordService`, `LocalJWKSProvider` | `@component` |
-| Routes | `AuthController`, `OIDCController` | `@controller` |
+| Routes | `AuthController`, `GroupController`, `OIDCController` | `@controller` |
 
 ---
 
@@ -105,6 +106,13 @@ curl http://localhost:8100/api/v1/auth/me \
 | GET | `/api/v1/auth/users` | Admin | List all users |
 | PUT | `/api/v1/auth/users/{id}/role` | Admin | Update user role |
 | GET | `/api/v1/auth/jwks` | No | JSON Web Key Set |
+| POST | `/api/v1/groups` | Admin | Create a group |
+| GET | `/api/v1/groups` | Bearer | List groups (by org) |
+| GET | `/api/v1/groups/{id}` | Bearer | Get group with members |
+| PUT | `/api/v1/groups/{id}` | Admin | Update group |
+| DELETE | `/api/v1/groups/{id}` | Admin | Delete group |
+| POST | `/api/v1/groups/{id}/members` | Admin | Add member to group |
+| DELETE | `/api/v1/groups/{id}/members/{uid}` | Admin | Remove member |
 | GET | `/.well-known/openid-configuration` | No | OIDC discovery |
 
 ---
@@ -155,6 +163,7 @@ Access tokens include:
 | `email` | User email |
 | `role` | User role (`superadmin`, `org_admin`, `operator`, `viewer`) |
 | `org_id` | Organization ID |
+| `groups` | Group IDs the user belongs to |
 | `iss` | Issuer URL |
 | `aud` | Audience |
 | `iat` | Issued at (Unix timestamp) |

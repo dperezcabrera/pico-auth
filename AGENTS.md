@@ -24,16 +24,16 @@ pico_auth/
   local_auth_configurer.py # Compatibility patches for pico-client-auth + pico-fastapi
   local_jwks_provider.py  # Local JWKS provider (avoids HTTP self-call)
   main.py              # Entrypoint: create_container() + uvicorn server
-  models.py            # SQLAlchemy entities: User, RefreshToken
+  models.py            # SQLAlchemy entities: User, RefreshToken, Group, GroupMember
   passwords.py         # Bcrypt hashing service
-  repository.py        # UserRepository, RefreshTokenRepository
-  routes.py            # AuthController (/api/v1/auth), OIDCController (/.well-known)
+  repository.py        # UserRepository, RefreshTokenRepository, GroupRepository
+  routes.py            # AuthController (/api/v1/auth), GroupController (/api/v1/groups), OIDCController (/.well-known)
   schema.py            # create_tables() helper
-  service.py           # AuthService: register, login, refresh, profile, roles
+  service.py           # AuthService, GroupService: register, login, refresh, profile, roles, group CRUD
 tests/
   conftest.py          # Fixtures: container, app, client (in-memory SQLite)
-  test_auth_e2e.py     # Full HTTP flow tests (18 tests)
-  test_coverage_gaps.py # Coverage gap tests (16 tests)
+  test_auth_e2e.py     # Full HTTP flow tests (27 tests)
+  test_coverage_gaps.py # Coverage gap tests (24 tests)
 application.yaml       # Default config (SQLite, port 8100, auto admin)
 ```
 
@@ -45,7 +45,8 @@ application.yaml       # Default config (SQLite, port 8100, auto admin)
 - **Refresh tokens**: Stored as SHA-256 hashes. Rotation on use (old deleted, new created).
 - **Roles**: `superadmin`, `org_admin`, `operator`, `viewer`. Admin endpoints require `superadmin` or `org_admin`.
 - **Password hashing**: Direct bcrypt with 72-byte truncation.
-- **Auth middleware**: pico-client-auth provides `@allow_anonymous`, `@requires_role`, `SecurityContext`. `LocalJWKSProvider` reads keys locally to avoid HTTP self-call.
+- **Groups**: `Group`, `GroupMember` entities. `GroupRepository` for data access. `GroupService` for business logic. `GroupController` at `/api/v1/groups`. Groups are included in JWT `groups` claim.
+- **Auth middleware**: pico-client-auth provides `@allow_anonymous`, `@requires_role`, `@requires_group`, `SecurityContext`. `LocalJWKSProvider` reads keys locally to avoid HTTP self-call.
 - **Bootstrap**: `pico_boot.init(modules=["pico_auth"])` with `YamlTreeSource` + `EnvSource`.
 
 ## Code Style

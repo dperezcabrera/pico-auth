@@ -4,11 +4,11 @@ from typing import Any
 
 from fastapi import Body
 from pico_client_auth import SecurityContext, allow_anonymous, requires_role
-from pico_fastapi import controller, get, post, put
+from pico_fastapi import controller, delete, get, post, put
 
 from pico_auth.errors import AuthError
 from pico_auth.jwt_provider import JWTProvider
-from pico_auth.service import AuthService
+from pico_auth.service import AuthService, GroupService
 
 
 @controller(prefix="/api/v1/auth", tags=["auth"])
@@ -132,6 +132,100 @@ class AuthController:
     @allow_anonymous
     async def jwks(self) -> dict[str, Any]:
         return self._jwt.jwks()
+
+
+@controller(prefix="/api/v1/groups", tags=["groups"])
+class GroupController:
+    """Group management endpoints."""
+
+    def __init__(self, service: GroupService):
+        self._service = service
+
+    @post("")
+    @requires_role("superadmin", "org_admin")
+    async def create_group(
+        self,
+        name: str = Body(...),
+        description: str = Body(""),
+    ) -> dict[str, Any]:
+        claims = SecurityContext.require()
+        try:
+            group = await self._service.create_group(name, claims.org_id, description)
+            return {"id": group.id, "name": group.name, "org_id": group.org_id}
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @get("")
+    async def list_groups(self) -> dict[str, Any]:
+        claims = SecurityContext.require()
+        groups = await self._service.list_groups(claims.org_id)
+        return {
+            "groups": [
+                {"id": g.id, "name": g.name, "description": g.description, "org_id": g.org_id}
+                for g in groups
+            ],
+            "total": len(groups),
+        }
+
+    @get("/{group_id}")
+    async def get_group(self, group_id: str) -> dict[str, Any]:
+        try:
+            group = await self._service.get_group(group_id)
+            members = await self._service.get_members(group_id)
+            return {
+                "id": group.id,
+                "name": group.name,
+                "description": group.description,
+                "org_id": group.org_id,
+                "members": [{"user_id": m.user_id, "joined_at": m.joined_at} for m in members],
+            }
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @put("/{group_id}")
+    @requires_role("superadmin", "org_admin")
+    async def update_group(
+        self,
+        group_id: str,
+        name: str = Body(None),
+        description: str = Body(None),
+    ) -> dict[str, Any]:
+        try:
+            group = await self._service.update_group(group_id, name, description)
+            return {"id": group.id, "name": group.name, "description": group.description}
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @delete("/{group_id}")
+    @requires_role("superadmin", "org_admin")
+    async def delete_group(self, group_id: str) -> dict[str, Any]:
+        try:
+            await self._service.delete_group(group_id)
+            return {"message": "Group deleted"}
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @post("/{group_id}/members")
+    @requires_role("superadmin", "org_admin")
+    async def add_member(
+        self,
+        group_id: str,
+        user_id: str = Body(...),
+    ) -> dict[str, Any]:
+        try:
+            await self._service.add_member(group_id, user_id)
+            return {"message": "Member added"}
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @delete("/{group_id}/members/{user_id}")
+    @requires_role("superadmin", "org_admin")
+    async def remove_member(self, group_id: str, user_id: str) -> dict[str, Any]:
+        try:
+            await self._service.remove_member(group_id, user_id)
+            return {"message": "Member removed"}
+        except AuthError as exc:
+            return {"error": exc.message}
 
 
 @controller(prefix="/.well-known", tags=["oidc"])

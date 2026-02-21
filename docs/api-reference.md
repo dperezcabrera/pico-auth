@@ -20,6 +20,14 @@
 
 ::: pico_auth.repository.RefreshTokenRepository
 
+## GroupService
+
+::: pico_auth.service.GroupService
+
+## GroupRepository
+
+::: pico_auth.repository.GroupRepository
+
 ## AuthSettings
 
 ::: pico_auth.config.AuthSettings
@@ -29,6 +37,10 @@
 ::: pico_auth.models.User
 
 ::: pico_auth.models.RefreshToken
+
+::: pico_auth.models.Group
+
+::: pico_auth.models.GroupMember
 
 ## Errors
 
@@ -47,3 +59,11 @@
 ::: pico_auth.errors.InsufficientPermissionsError
 
 ::: pico_auth.errors.UserSuspendedError
+
+::: pico_auth.errors.GroupNotFoundError
+
+::: pico_auth.errors.GroupExistsError
+
+::: pico_auth.errors.MemberAlreadyInGroupError
+
+::: pico_auth.errors.MemberNotInGroupError

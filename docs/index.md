@@ -9,6 +9,7 @@ Pico-Auth is a ready-to-run authentication server built on the [pico-framework](
 - **RS256 JWT tokens** with auto-generated RSA key pairs
 - **Refresh token rotation** with SHA-256 hashed storage
 - **Role-based access control** (superadmin, org_admin, operator, viewer)
+- **Group management** with CRUD API, membership, and `groups` JWT claim
 - **OIDC discovery** endpoints for service-to-service integration
 - **Zero-config startup** with SQLite and auto-created admin
 

@@ -1,0 +1,17 @@
+ARG PYTHON_VERSION=3.14
+FROM python:${PYTHON_VERSION}-slim
+
+WORKDIR /app
+
+COPY pyproject.toml .coveragerc ./
+COPY pico_auth/ pico_auth/
+COPY tests/ tests/
+
+# Install app and deps, then override pico-client-auth with local wheel
+COPY pico_client_auth_wheel/ /tmp/pico_client_auth_wheel/
+RUN pip install --upgrade pip \
+    && pip install -e ".[dev]" \
+    && pip install --force-reinstall --no-deps /tmp/pico_client_auth_wheel/*.whl \
+    && rm -rf /tmp/pico_client_auth_wheel
+
+CMD ["pytest", "tests/", "-v"]

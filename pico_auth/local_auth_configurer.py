@@ -6,7 +6,11 @@
    ``_register_route`` to copy them onto the generated handler.
 """
 
-from pico_client_auth.decorators import PICO_ALLOW_ANONYMOUS, PICO_REQUIRED_ROLES
+from pico_client_auth.decorators import (
+    PICO_ALLOW_ANONYMOUS,
+    PICO_REQUIRED_GROUPS,
+    PICO_REQUIRED_ROLES,
+)
 from pico_fastapi import factory as _fastapi_factory
 
 # ---------------------------------------------------------------------------
@@ -23,7 +27,7 @@ def _register_route_with_attrs(router, container, cls, name, method, route_info)
         last_route = router.routes[-1]
         endpoint = getattr(last_route, "endpoint", None)
         if endpoint is not None:
-            for attr in (PICO_ALLOW_ANONYMOUS, PICO_REQUIRED_ROLES):
+            for attr in (PICO_ALLOW_ANONYMOUS, PICO_REQUIRED_ROLES, PICO_REQUIRED_GROUPS):
                 val = getattr(method, attr, None)
                 if val is not None:
                     setattr(endpoint, attr, val)

@@ -1,7 +1,7 @@
 """Auth business logic: register, login, refresh, profile, roles."""
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 from pico_ioc import component
@@ -9,7 +9,11 @@ from pico_ioc import component
 from pico_auth.config import AuthSettings
 from pico_auth.errors import (
     AuthError,
+    GroupExistsError,
+    GroupNotFoundError,
     InvalidCredentialsError,
+    MemberAlreadyInGroupError,
+    MemberNotInGroupError,
     TokenExpiredError,
     TokenInvalidError,
     UserExistsError,
@@ -17,15 +21,15 @@ from pico_auth.errors import (
     UserSuspendedError,
 )
 from pico_auth.jwt_provider import JWTProvider
-from pico_auth.models import RefreshToken, User
+from pico_auth.models import Group, GroupMember, RefreshToken, User
 from pico_auth.passwords import PasswordService
-from pico_auth.repository import RefreshTokenRepository, UserRepository
+from pico_auth.repository import GroupRepository, RefreshTokenRepository, UserRepository
 
 VALID_ROLES = frozenset({"superadmin", "org_admin", "operator", "viewer"})
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _hash_token(raw: str) -> str:
@@ -37,7 +41,7 @@ def _build_refresh_token(user_id: str, raw_token: str, expire_days: int) -> Refr
         id=uuid4().hex[:12],
         user_id=user_id,
         token_hash=_hash_token(raw_token),
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=expire_days)).isoformat(),
+        expires_at=(datetime.now(UTC) + timedelta(days=expire_days)).isoformat(),
         created_at=_now_iso(),
     )
 
@@ -50,12 +54,14 @@ class AuthService:
         self,
         users: UserRepository,
         tokens: RefreshTokenRepository,
+        groups: GroupRepository,
         passwords: PasswordService,
         jwt_provider: JWTProvider,
         settings: AuthSettings,
     ):
         self._users = users
         self._tokens = tokens
+        self._groups = groups
         self._passwords = passwords
         self._jwt = jwt_provider
         self._settings = settings
@@ -93,11 +99,13 @@ class AuthService:
 
         await self._users.update_last_login(user.id, _now_iso())
 
+        group_ids = await self._groups.get_group_ids_for_user(user.id)
         access_token = self._jwt.create_access_token(
             user.id,
             user.email,
             user.role,
             user.org_id,
+            groups=group_ids,
         )
         raw_refresh = self._jwt.create_refresh_token()
         refresh = _build_refresh_token(
@@ -117,7 +125,7 @@ class AuthService:
         if not stored:
             raise TokenInvalidError()
 
-        if datetime.fromisoformat(stored.expires_at) < datetime.now(timezone.utc):
+        if datetime.fromisoformat(stored.expires_at) < datetime.now(UTC):
             await self._tokens.delete_by_hash(stored.token_hash)
             raise TokenExpiredError()
 
@@ -133,11 +141,13 @@ class AuthService:
         )
         await self._tokens.save(new_refresh)
 
+        group_ids = await self._groups.get_group_ids_for_user(user.id)
         access_token = self._jwt.create_access_token(
             user.id,
             user.email,
             user.role,
             user.org_id,
+            groups=group_ids,
         )
         return {
             "access_token": access_token,
@@ -183,3 +193,88 @@ class AuthService:
         if existing:
             return
         await self.register(email, password, "Admin", role="superadmin")
+
+
+@component
+class GroupService:
+    """Group management operations."""
+
+    def __init__(self, groups: GroupRepository, users: UserRepository):
+        self._groups = groups
+        self._users = users
+
+    async def create_group(self, name: str, org_id: str, description: str = "") -> Group:
+        existing = await self._groups.find_by_name_and_org(name, org_id)
+        if existing:
+            raise GroupExistsError(name)
+        group = Group(
+            id=uuid4().hex[:12],
+            name=name,
+            description=description,
+            org_id=org_id,
+            created_at=_now_iso(),
+            updated_at=_now_iso(),
+        )
+        await self._groups.save(group)
+        return group
+
+    async def get_group(self, group_id: str) -> Group:
+        group = await self._groups.find_by_id(group_id)
+        if not group:
+            raise GroupNotFoundError(group_id)
+        return group
+
+    async def list_groups(self, org_id: str) -> list[Group]:
+        return await self._groups.list_by_org(org_id)
+
+    async def update_group(
+        self, group_id: str, name: str | None = None, description: str | None = None
+    ) -> Group:
+        group = await self._groups.find_by_id(group_id)
+        if not group:
+            raise GroupNotFoundError(group_id)
+        if name is not None:
+            group.name = name
+        if description is not None:
+            group.description = description
+        group.updated_at = _now_iso()
+        await self._groups.update(group)
+        return group
+
+    async def delete_group(self, group_id: str) -> None:
+        group = await self._groups.find_by_id(group_id)
+        if not group:
+            raise GroupNotFoundError(group_id)
+        await self._groups.delete(group_id)
+
+    async def add_member(self, group_id: str, user_id: str) -> None:
+        group = await self._groups.find_by_id(group_id)
+        if not group:
+            raise GroupNotFoundError(group_id)
+        user = await self._users.find_by_id(user_id)
+        if not user:
+            raise UserNotFoundError(user_id)
+        existing = await self._groups.find_member(group_id, user_id)
+        if existing:
+            raise MemberAlreadyInGroupError(user_id, group_id)
+        member = GroupMember(
+            group_id=group_id,
+            user_id=user_id,
+            joined_at=_now_iso(),
+        )
+        await self._groups.add_member(member)
+
+    async def remove_member(self, group_id: str, user_id: str) -> None:
+        existing = await self._groups.find_member(group_id, user_id)
+        if not existing:
+            raise MemberNotInGroupError(user_id, group_id)
+        await self._groups.remove_member(group_id, user_id)
+
+    async def get_members(self, group_id: str) -> list[GroupMember]:
+        group = await self._groups.find_by_id(group_id)
+        if not group:
+            raise GroupNotFoundError(group_id)
+        return await self._groups.list_members(group_id)
+
+    async def get_group_ids_for_user(self, user_id: str) -> list[str]:
+        return await self._groups.get_group_ids_for_user(user_id)
