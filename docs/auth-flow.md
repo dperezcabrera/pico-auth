@@ -47,6 +47,7 @@ sequenceDiagram
 | `aud` | string | Audience |
 | `iat` | int | Issued at (Unix timestamp) |
 | `exp` | int | Expiration (Unix timestamp) |
+| `groups` | list[string] | Group IDs the user belongs to |
 | `jti` | string | Unique token ID (12 hex chars) |
 
 ## Refresh Token Rotation
@@ -73,7 +74,7 @@ When a user changes their password via `/me/password`:
 
 | Role | Access |
 |------|--------|
-| `viewer` | Own profile, change password |
+| `viewer` | Own profile, change password, list/view groups |
 | `operator` | Same as viewer |
-| `org_admin` | List users, update roles |
-| `superadmin` | List users, update roles |
+| `org_admin` | List users, update roles, manage groups and members |
+| `superadmin` | List users, update roles, manage groups and members |

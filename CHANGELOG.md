@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ---
 
+## v0.2.0 — Group Management (2026-02-21)
+
+### Added
+
+- **Group CRUD API** — 7 endpoints at `/api/v1/groups` for creating, listing, updating, deleting groups and managing membership
+- **`groups` JWT claim** — Login and refresh tokens now include group IDs for the authenticated user
+- **`Group` entity** — SQLAlchemy model with `id`, `name`, `description`, `org_id`, timestamps
+- **`GroupMember` entity** — Composite-key model linking users to groups
+- **`GroupRepository`** — Data access for groups and group membership
+- **`GroupService`** — Business logic for group CRUD and member management
+- **`GroupController`** — REST controller at `/api/v1/groups`
+- **`@requires_group` forwarding** — `LocalAuthConfigurer` forwards the decorator from pico-client-auth
+- Error types: `GroupNotFoundError`, `GroupExistsError`, `MemberAlreadyInGroupError`, `MemberNotInGroupError`
+- Docker E2E test infrastructure (`Dockerfile.test`, `Makefile`)
+
+### Changed
+
+- Aligned ruff config with ecosystem (C901, PLR1702, preview mode)
+- `timezone.utc` replaced with `datetime.UTC`
+
+---
+
 ## v0.1.3 — Remove Configurer Guard Patch (2026-02-20)
 
 ### Removed

@@ -7,14 +7,18 @@ graph TD
     A[AuthController] --> S[AuthService]
     A --> J[JWTProvider]
     O[OIDCController] --> J
+    G[GroupController] --> GS[GroupService]
     S --> UR[UserRepository]
     S --> TR[RefreshTokenRepository]
+    S --> GR[GroupRepository]
     S --> P[PasswordService]
     S --> J
     S --> C[AuthSettings]
+    GS --> GR
     J --> C
     UR --> SM[SessionManager]
     TR --> SM
+    GR --> SM
 ```
 
 ## Layer Separation
@@ -22,11 +26,11 @@ graph TD
 | Layer | Components | Responsibility |
 |-------|-----------|----------------|
 | **Config** | `AuthSettings` | Load settings from YAML/env |
-| **Models** | `User`, `RefreshToken` | SQLAlchemy entity definitions |
-| **Repository** | `UserRepository`, `RefreshTokenRepository` | Database access (CRUD) |
-| **Service** | `AuthService` | Business logic, validation |
+| **Models** | `User`, `RefreshToken`, `Group`, `GroupMember` | SQLAlchemy entity definitions |
+| **Repository** | `UserRepository`, `RefreshTokenRepository`, `GroupRepository` | Database access (CRUD) |
+| **Service** | `AuthService`, `GroupService` | Business logic, validation |
 | **Security** | `JWTProvider`, `PasswordService` | Token creation, password hashing |
-| **Routes** | `AuthController`, `OIDCController` | HTTP endpoints |
+| **Routes** | `AuthController`, `GroupController`, `OIDCController` | HTTP endpoints |
 | **Bootstrap** | `main.py` | Container creation, server startup |
 
 ## Dependency Injection
@@ -47,7 +51,7 @@ container = init(modules=["pico_auth"], config=config)
 
 - **ORM**: SQLAlchemy 2.0 async (via pico-sqlalchemy)
 - **Default engine**: SQLite + aiosqlite
-- **Tables**: `users`, `refresh_tokens`
+- **Tables**: `users`, `refresh_tokens`, `groups`, `group_members`
 - **Schema creation**: `create_tables(session_manager)` on startup
 
 ## Key Storage

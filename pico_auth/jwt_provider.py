@@ -2,7 +2,7 @@
 
 import base64
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
 from cryptography.hazmat.primitives import serialization
@@ -63,14 +63,16 @@ class JWTProvider:
         email: str,
         role: str,
         org_id: str,
+        groups: list[str] | None = None,
     ) -> str:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         exp = now + timedelta(minutes=self._settings.access_token_expire_minutes)
         claims = {
             "sub": user_id,
             "email": email,
             "role": role,
             "org_id": org_id,
+            "groups": groups or [],
             "iss": self._settings.issuer,
             "aud": self._settings.audience,
             "iat": int(now.timestamp()),
