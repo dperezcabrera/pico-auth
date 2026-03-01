@@ -8,7 +8,7 @@ from pico_fastapi import controller, delete, get, post, put
 
 from pico_auth.errors import AuthError
 from pico_auth.jwt_provider import JWTProvider
-from pico_auth.service import AuthService, GroupService
+from pico_auth.service import AuthService, EmailCredentialService, GroupService
 
 
 @controller(prefix="/api/v1/auth", tags=["auth"])
@@ -228,6 +228,69 @@ class GroupController:
             return {"error": exc.message}
 
 
+@controller(prefix="/api/v1/auth/service-tokens", tags=["service-tokens"])
+class ServiceTokenController:
+    """Service token lifecycle: create, validate, list, revoke."""
+
+    def __init__(self, service: AuthService):
+        self._service = service
+
+    @post("")
+    @requires_role("superadmin", "org_admin")
+    async def create(
+        self,
+        name: str = Body(...),
+        role: str = Body("operator"),
+        org_id: str = Body("default"),
+        description: str = Body(""),
+    ) -> dict[str, Any]:
+        try:
+            return await self._service.create_service_token(name, role, org_id, description)
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @post("/validate")
+    @allow_anonymous
+    async def validate(self, token: str = Body(..., embed=True)) -> dict[str, Any]:
+        try:
+            svc = await self._service.validate_service_token(token)
+            return {
+                "valid": True,
+                "name": svc.name,
+                "role": svc.role,
+                "org_id": svc.org_id,
+            }
+        except AuthError:
+            return {"valid": False}
+
+    @get("")
+    @requires_role("superadmin", "org_admin")
+    async def list_tokens(self) -> dict[str, Any]:
+        tokens = await self._service.list_service_tokens()
+        return {
+            "tokens": [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "role": t.role,
+                    "org_id": t.org_id,
+                    "description": t.description,
+                    "created_at": t.created_at,
+                }
+                for t in tokens
+            ],
+            "total": len(tokens),
+        }
+
+    @delete("/{name}")
+    @requires_role("superadmin", "org_admin")
+    async def revoke(self, name: str) -> dict[str, Any]:
+        revoked = await self._service.revoke_service_token(name)
+        if revoked:
+            return {"message": f"Service token '{name}' revoked"}
+        return {"error": f"Active service token '{name}' not found"}
+
+
 @controller(prefix="/.well-known", tags=["oidc"])
 class OIDCController:
     """OIDC discovery endpoint."""
@@ -239,3 +302,84 @@ class OIDCController:
     @allow_anonymous
     async def openid_configuration(self) -> dict[str, Any]:
         return self._jwt.openid_configuration()
+
+
+@controller(prefix="/api/v1/email-credentials", tags=["email-credentials"])
+class EmailCredentialController:
+    """Email credential management for agent accounts."""
+
+    def __init__(self, service: EmailCredentialService):
+        self._service = service
+
+    @post("")
+    @allow_anonymous
+    async def upsert(
+        self,
+        agent_id: str = Body(...),
+        email: str = Body(...),
+        imap_host: str = Body(...),
+        imap_port: int = Body(993),
+        smtp_host: str = Body(...),
+        smtp_port: int = Body(465),
+        username: str = Body(...),
+        password: str = Body(...),
+        use_tls: bool = Body(True),
+    ) -> dict[str, Any]:
+        cred = await self._service.upsert(
+            agent_id=agent_id,
+            email=email,
+            imap_host=imap_host,
+            imap_port=imap_port,
+            smtp_host=smtp_host,
+            smtp_port=smtp_port,
+            username=username,
+            password=password,
+            use_tls=use_tls,
+        )
+        return {"agent_id": cred.agent_id, "email": cred.email}
+
+    @get("/{agent_id}")
+    @allow_anonymous
+    async def get_by_agent(self, agent_id: str) -> dict[str, Any]:
+        try:
+            cred = await self._service.get(agent_id)
+            return {
+                "agent_id": cred.agent_id,
+                "email": cred.email,
+                "imap_host": cred.imap_host,
+                "imap_port": cred.imap_port,
+                "smtp_host": cred.smtp_host,
+                "smtp_port": cred.smtp_port,
+                "username": cred.username,
+                "password": cred.password,
+                "use_tls": cred.use_tls,
+            }
+        except AuthError as exc:
+            return {"error": exc.message}
+
+    @get("")
+    @allow_anonymous
+    async def list_all(self) -> dict[str, Any]:
+        creds = await self._service.list_all()
+        return {
+            "credentials": [
+                {
+                    "agent_id": c.agent_id,
+                    "email": c.email,
+                    "imap_host": c.imap_host,
+                    "imap_port": c.imap_port,
+                    "smtp_host": c.smtp_host,
+                    "smtp_port": c.smtp_port,
+                    "username": c.username,
+                    "use_tls": c.use_tls,
+                }
+                for c in creds
+            ],
+            "total": len(creds),
+        }
+
+    @delete("/{agent_id}")
+    @allow_anonymous
+    async def delete_credential(self, agent_id: str) -> dict[str, Any]:
+        await self._service.delete(agent_id)
+        return {"message": f"Email credential for '{agent_id}' deleted"}

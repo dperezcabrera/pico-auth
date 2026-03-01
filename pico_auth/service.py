@@ -21,9 +21,15 @@ from pico_auth.errors import (
     UserSuspendedError,
 )
 from pico_auth.jwt_provider import JWTProvider
-from pico_auth.models import Group, GroupMember, RefreshToken, User
+from pico_auth.models import EmailCredential, Group, GroupMember, RefreshToken, ServiceToken, User
 from pico_auth.passwords import PasswordService
-from pico_auth.repository import GroupRepository, RefreshTokenRepository, UserRepository
+from pico_auth.repository import (
+    EmailCredentialRepository,
+    GroupRepository,
+    RefreshTokenRepository,
+    ServiceTokenRepository,
+    UserRepository,
+)
 
 VALID_ROLES = frozenset({"superadmin", "org_admin", "operator", "viewer"})
 
@@ -55,6 +61,7 @@ class AuthService:
         users: UserRepository,
         tokens: RefreshTokenRepository,
         groups: GroupRepository,
+        service_tokens: ServiceTokenRepository,
         passwords: PasswordService,
         jwt_provider: JWTProvider,
         settings: AuthSettings,
@@ -62,6 +69,7 @@ class AuthService:
         self._users = users
         self._tokens = tokens
         self._groups = groups
+        self._service_tokens = service_tokens
         self._passwords = passwords
         self._jwt = jwt_provider
         self._settings = settings
@@ -187,6 +195,44 @@ class AuthService:
             raise UserNotFoundError(user_id)
         return user
 
+    async def create_service_token(
+        self,
+        name: str,
+        role: str = "operator",
+        org_id: str = "default",
+        description: str = "",
+    ) -> dict:
+        existing = await self._service_tokens.find_by_name(name)
+        if existing:
+            return {"id": existing.id, "name": existing.name, "already_exists": True}
+
+        import secrets
+
+        raw_token = f"pico_svc_{secrets.token_hex(32)}"
+        token = ServiceToken(
+            id=uuid4().hex[:12],
+            name=name,
+            token_hash=_hash_token(raw_token),
+            role=role,
+            org_id=org_id,
+            description=description,
+            created_at=_now_iso(),
+        )
+        await self._service_tokens.save(token)
+        return {"id": token.id, "name": name, "token": raw_token, "already_exists": False}
+
+    async def validate_service_token(self, raw_token: str) -> ServiceToken:
+        token = await self._service_tokens.find_by_hash(_hash_token(raw_token))
+        if not token:
+            raise TokenInvalidError()
+        return token
+
+    async def revoke_service_token(self, name: str) -> bool:
+        return await self._service_tokens.revoke(name, _now_iso())
+
+    async def list_service_tokens(self) -> list[ServiceToken]:
+        return await self._service_tokens.list_active()
+
     async def ensure_admin(self, email: str, password: str) -> None:
         """Create the initial admin if it does not exist."""
         existing = await self._users.find_by_email(email)
@@ -278,3 +324,52 @@ class GroupService:
 
     async def get_group_ids_for_user(self, user_id: str) -> list[str]:
         return await self._groups.get_group_ids_for_user(user_id)
+
+
+@component
+class EmailCredentialService:
+    """Email credential CRUD operations."""
+
+    def __init__(self, repo: EmailCredentialRepository):
+        self._repo = repo
+
+    async def upsert(
+        self,
+        agent_id: str,
+        email: str,
+        imap_host: str,
+        imap_port: int,
+        smtp_host: str,
+        smtp_port: int,
+        username: str,
+        password: str,
+        use_tls: bool = True,
+    ) -> EmailCredential:
+        existing = await self._repo.find_by_agent_id(agent_id)
+        cred = EmailCredential(
+            id=existing.id if existing else uuid4().hex[:12],
+            agent_id=agent_id,
+            email=email,
+            imap_host=imap_host,
+            imap_port=imap_port,
+            smtp_host=smtp_host,
+            smtp_port=smtp_port,
+            username=username,
+            password=password,
+            use_tls=use_tls,
+            created_at=existing.created_at if existing else _now_iso(),
+        )
+        await self._repo.save(cred)
+        return cred
+
+    async def get(self, agent_id: str) -> EmailCredential:
+        cred = await self._repo.find_by_agent_id(agent_id)
+        if not cred:
+            raise AuthError(f"No email credential for agent: {agent_id}")
+        return cred
+
+    async def list_all(self) -> list[EmailCredential]:
+        return await self._repo.find_all()
+
+    async def delete(self, agent_id: str) -> None:
+        await self._repo.delete_by_agent_id(agent_id)

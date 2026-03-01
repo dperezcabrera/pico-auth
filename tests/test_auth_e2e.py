@@ -5,6 +5,7 @@ from jose import jwt
 
 API = "/api/v1/auth"
 GROUPS_API = "/api/v1/groups"
+SVC_API = "/api/v1/auth/service-tokens"
 
 
 # ===================================================================
@@ -584,6 +585,161 @@ class TestGroups:
         resp = await client.post(
             GROUPS_API,
             json={"name": "Nope"},
+            headers=self._auth(viewer_token),
+        )
+        assert resp.status_code == 403
+
+
+# ===================================================================
+# Service tokens
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestServiceTokens:
+    async def _get_admin_token(self, client, container):
+        from pico_auth.service import AuthService
+
+        service = container.get(AuthService)
+        await service.ensure_admin("svcadmin@test.com", "adminpass")
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "svcadmin@test.com", "password": "adminpass"},
+        )
+        return resp.json()["access_token"]
+
+    def _auth(self, token):
+        return {"Authorization": f"Bearer {token}"}
+
+    async def test_create_service_token(self, client, container):
+        token = await self._get_admin_token(client, container)
+        resp = await client.post(
+            SVC_API,
+            json={"name": "agent-luna", "description": "Test agent"},
+            headers=self._auth(token),
+        )
+        data = resp.json()
+        assert "error" not in data
+        assert data["name"] == "agent-luna"
+        assert data["already_exists"] is False
+        assert data["token"].startswith("pico_svc_")
+
+    async def test_create_idempotent(self, client, container):
+        token = await self._get_admin_token(client, container)
+        await client.post(
+            SVC_API,
+            json={"name": "agent-idem"},
+            headers=self._auth(token),
+        )
+        resp = await client.post(
+            SVC_API,
+            json={"name": "agent-idem"},
+            headers=self._auth(token),
+        )
+        data = resp.json()
+        assert data["already_exists"] is True
+        assert "token" not in data
+
+    async def test_validate_valid_token(self, client, container):
+        admin = await self._get_admin_token(client, container)
+        create_resp = await client.post(
+            SVC_API,
+            json={"name": "agent-val"},
+            headers=self._auth(admin),
+        )
+        raw = create_resp.json()["token"]
+        resp = await client.post(
+            f"{SVC_API}/validate",
+            json={"token": raw},
+        )
+        data = resp.json()
+        assert data["valid"] is True
+        assert data["name"] == "agent-val"
+        assert data["role"] == "operator"
+
+    async def test_validate_invalid_token(self, client):
+        resp = await client.post(
+            f"{SVC_API}/validate",
+            json={"token": "pico_svc_bogus"},
+        )
+        assert resp.json()["valid"] is False
+
+    async def test_list_tokens(self, client, container):
+        admin = await self._get_admin_token(client, container)
+        await client.post(
+            SVC_API,
+            json={"name": "agent-list"},
+            headers=self._auth(admin),
+        )
+        resp = await client.get(SVC_API, headers=self._auth(admin))
+        data = resp.json()
+        assert data["total"] >= 1
+        names = [t["name"] for t in data["tokens"]]
+        assert "agent-list" in names
+        # Raw hash must NOT appear in list
+        for t in data["tokens"]:
+            assert "token_hash" not in t
+
+    async def test_revoke_token(self, client, container):
+        admin = await self._get_admin_token(client, container)
+        create_resp = await client.post(
+            SVC_API,
+            json={"name": "agent-revoke"},
+            headers=self._auth(admin),
+        )
+        raw = create_resp.json()["token"]
+
+        # Revoke
+        resp = await client.delete(
+            f"{SVC_API}/agent-revoke",
+            headers=self._auth(admin),
+        )
+        assert "revoked" in resp.json()["message"]
+
+        # Validate must fail
+        val = await client.post(
+            f"{SVC_API}/validate",
+            json={"token": raw},
+        )
+        assert val.json()["valid"] is False
+
+    async def test_revoke_nonexistent(self, client, container):
+        admin = await self._get_admin_token(client, container)
+        resp = await client.delete(
+            f"{SVC_API}/no-such-agent",
+            headers=self._auth(admin),
+        )
+        assert "error" in resp.json()
+
+    async def test_recreate_after_revoke(self, client, container):
+        """After revocation, same name can be used to create a new token."""
+        from pico_auth.service import AuthService
+
+        service = container.get(AuthService)
+
+        r1 = await service.create_service_token("agent-cycle")
+        token1 = r1["token"]
+
+        await service.revoke_service_token("agent-cycle")
+        r2 = await service.create_service_token("agent-cycle")
+
+        assert r2["already_exists"] is False
+        assert r2["token"].startswith("pico_svc_")
+        assert r2["token"] != token1
+
+    async def test_viewer_cannot_create(self, client):
+        await client.post(
+            f"{API}/register",
+            json={"email": "svcviewer@test.com", "password": "pass"},
+        )
+        login = await client.post(
+            f"{API}/login",
+            json={"email": "svcviewer@test.com", "password": "pass"},
+        )
+        viewer_token = login.json()["access_token"]
+        resp = await client.post(
+            SVC_API,
+            json={"name": "nope"},
             headers=self._auth(viewer_token),
         )
         assert resp.status_code == 403

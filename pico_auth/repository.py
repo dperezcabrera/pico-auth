@@ -2,9 +2,9 @@
 
 from pico_ioc import component
 from pico_sqlalchemy import SessionManager
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
-from pico_auth.models import Group, GroupMember, RefreshToken, User
+from pico_auth.models import EmailCredential, Group, GroupMember, RefreshToken, ServiceToken, User
 
 
 @component
@@ -166,4 +166,87 @@ class RefreshTokenRepository:
         async with self._sm.transaction() as session:
             await session.execute(
                 delete(RefreshToken).where(RefreshToken.token_hash == token_hash),
+            )
+
+
+@component
+class ServiceTokenRepository:
+    """Data access for ServiceToken entities."""
+
+    def __init__(self, sm: SessionManager):
+        self._sm = sm
+
+    async def find_by_name(self, name: str) -> ServiceToken | None:
+        async with self._sm.transaction() as session:
+            result = await session.execute(
+                select(ServiceToken).where(
+                    ServiceToken.name == name,
+                    ServiceToken.revoked_at.is_(None),
+                ),
+            )
+            return result.scalar_one_or_none()
+
+    async def find_by_hash(self, token_hash: str) -> ServiceToken | None:
+        async with self._sm.transaction() as session:
+            result = await session.execute(
+                select(ServiceToken).where(
+                    ServiceToken.token_hash == token_hash,
+                    ServiceToken.revoked_at.is_(None),
+                ),
+            )
+            return result.scalar_one_or_none()
+
+    async def save(self, token: ServiceToken) -> None:
+        async with self._sm.transaction() as session:
+            await session.merge(token)
+            await session.flush()
+
+    async def revoke(self, name: str, timestamp: str) -> bool:
+        async with self._sm.transaction() as session:
+            result = await session.execute(
+                update(ServiceToken)
+                .where(
+                    ServiceToken.name == name,
+                    ServiceToken.revoked_at.is_(None),
+                )
+                .values(revoked_at=timestamp)
+            )
+            return result.rowcount > 0
+
+    async def list_active(self) -> list[ServiceToken]:
+        async with self._sm.transaction(read_only=True) as session:
+            result = await session.execute(
+                select(ServiceToken).where(ServiceToken.revoked_at.is_(None)),
+            )
+            return list(result.scalars().all())
+
+
+@component
+class EmailCredentialRepository:
+    """Data access for EmailCredential entities."""
+
+    def __init__(self, sm: SessionManager):
+        self._sm = sm
+
+    async def find_by_agent_id(self, agent_id: str) -> EmailCredential | None:
+        async with self._sm.transaction() as session:
+            result = await session.execute(
+                select(EmailCredential).where(EmailCredential.agent_id == agent_id),
+            )
+            return result.scalar_one_or_none()
+
+    async def save(self, credential: EmailCredential) -> None:
+        async with self._sm.transaction() as session:
+            await session.merge(credential)
+            await session.flush()
+
+    async def find_all(self) -> list[EmailCredential]:
+        async with self._sm.transaction(read_only=True) as session:
+            result = await session.execute(select(EmailCredential))
+            return list(result.scalars().all())
+
+    async def delete_by_agent_id(self, agent_id: str) -> None:
+        async with self._sm.transaction() as session:
+            await session.execute(
+                delete(EmailCredential).where(EmailCredential.agent_id == agent_id),
             )
