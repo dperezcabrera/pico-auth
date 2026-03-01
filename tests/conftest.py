@@ -28,6 +28,7 @@ def container(tmp_path):
                     "auto_create_admin": False,
                     "admin_email": "admin@test.local",
                     "admin_password": "admin",
+                    "email_credentials_token": "test-token",
                 },
                 "database": {
                     "url": f"sqlite+aiosqlite:///{db_path}",

@@ -2,10 +2,11 @@
 
 from typing import Any
 
-from fastapi import Body
+from fastapi import Body, Header, HTTPException
 from pico_client_auth import SecurityContext, allow_anonymous, requires_role
 from pico_fastapi import controller, delete, get, post, put
 
+from pico_auth.config import AuthSettings
 from pico_auth.errors import AuthError
 from pico_auth.jwt_provider import JWTProvider
 from pico_auth.service import AuthService, EmailCredentialService, GroupService
@@ -306,10 +307,27 @@ class OIDCController:
 
 @controller(prefix="/api/v1/email-credentials", tags=["email-credentials"])
 class EmailCredentialController:
-    """Email credential management for agent accounts."""
+    """Email credential management for agent accounts.
 
-    def __init__(self, service: EmailCredentialService):
+    All endpoints require a valid service token via Bearer auth.
+    If ``email_credentials_token`` is not configured, all requests
+    are rejected with 403 (secure-by-default).
+    """
+
+    def __init__(self, service: EmailCredentialService, settings: AuthSettings):
         self._service = service
+        self._token = settings.email_credentials_token
+
+    def _verify(self, authorization: str) -> None:
+        if not self._token:
+            raise HTTPException(
+                status_code=403,
+                detail="Email credentials API not configured (no service token set)",
+            )
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing Bearer token")
+        if authorization.removeprefix("Bearer ") != self._token:
+            raise HTTPException(status_code=401, detail="Invalid service token")
 
     @post("")
     @allow_anonymous
@@ -324,7 +342,9 @@ class EmailCredentialController:
         username: str = Body(...),
         password: str = Body(...),
         use_tls: bool = Body(True),
+        authorization: str = Header(...),
     ) -> dict[str, Any]:
+        self._verify(authorization)
         cred = await self._service.upsert(
             agent_id=agent_id,
             email=email,
@@ -340,7 +360,10 @@ class EmailCredentialController:
 
     @get("/{agent_id}")
     @allow_anonymous
-    async def get_by_agent(self, agent_id: str) -> dict[str, Any]:
+    async def get_by_agent(
+        self, agent_id: str, authorization: str = Header(...),
+    ) -> dict[str, Any]:
+        self._verify(authorization)
         try:
             cred = await self._service.get(agent_id)
             return {
@@ -359,7 +382,8 @@ class EmailCredentialController:
 
     @get("")
     @allow_anonymous
-    async def list_all(self) -> dict[str, Any]:
+    async def list_all(self, authorization: str = Header(...)) -> dict[str, Any]:
+        self._verify(authorization)
         creds = await self._service.list_all()
         return {
             "credentials": [
@@ -371,6 +395,7 @@ class EmailCredentialController:
                     "smtp_host": c.smtp_host,
                     "smtp_port": c.smtp_port,
                     "username": c.username,
+                    "password": c.password,
                     "use_tls": c.use_tls,
                 }
                 for c in creds
@@ -380,6 +405,9 @@ class EmailCredentialController:
 
     @delete("/{agent_id}")
     @allow_anonymous
-    async def delete_credential(self, agent_id: str) -> dict[str, Any]:
+    async def delete_credential(
+        self, agent_id: str, authorization: str = Header(...),
+    ) -> dict[str, Any]:
+        self._verify(authorization)
         await self._service.delete(agent_id)
         return {"message": f"Email credential for '{agent_id}' deleted"}
