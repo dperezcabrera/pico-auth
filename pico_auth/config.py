@@ -19,6 +19,7 @@ class AuthSettings:
     auto_create_admin: bool = True
     admin_email: str = "admin@pico.local"
     admin_password: str = "admin"
+    registration_enabled: bool = True
     email_credentials_token: str = ""
 
     @property

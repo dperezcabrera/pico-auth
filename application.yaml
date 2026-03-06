@@ -7,6 +7,7 @@ auth:
   auto_create_admin: true
   admin_email: "admin@pico.local"
   admin_password: "admin"
+  registration_enabled: true
 
 database:
   url: "sqlite+aiosqlite:///auth.db"

@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from jose import jwt
 from pico_ioc import component
@@ -100,6 +101,7 @@ class JWTProvider:
 
     def jwks(self) -> dict:
         pub_key = load_pem_public_key(self._public_key.encode())
+        assert isinstance(pub_key, RSAPublicKey)
         numbers = pub_key.public_numbers()
 
         def _b64url(num: int, length: int) -> str:

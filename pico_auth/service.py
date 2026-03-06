@@ -14,6 +14,7 @@ from pico_auth.errors import (
     InvalidCredentialsError,
     MemberAlreadyInGroupError,
     MemberNotInGroupError,
+    RegistrationDisabledError,
     TokenExpiredError,
     TokenInvalidError,
     UserExistsError,
@@ -73,6 +74,7 @@ class AuthService:
         self._passwords = passwords
         self._jwt = jwt_provider
         self._settings = settings
+        self._registration_enabled = settings.registration_enabled
 
     async def register(
         self,
@@ -80,7 +82,10 @@ class AuthService:
         password: str,
         display_name: str,
         role: str = "viewer",
+        _admin: bool = False,
     ) -> User:
+        if not _admin and not self._registration_enabled:
+            raise RegistrationDisabledError()
         existing = await self._users.find_by_email(email)
         if existing:
             raise UserExistsError(email)
@@ -238,7 +243,31 @@ class AuthService:
         existing = await self._users.find_by_email(email)
         if existing:
             return
-        await self.register(email, password, "Admin", role="superadmin")
+        await self.register(email, password, "Admin", role="superadmin", _admin=True)
+
+    async def admin_create_user(
+        self,
+        email: str,
+        password: str,
+        display_name: str = "",
+        role: str = "viewer",
+    ) -> User:
+        if role not in VALID_ROLES:
+            raise AuthError(f"Invalid role: {role}")
+        return await self.register(email, password, display_name, role=role, _admin=True)
+
+    async def admin_reset_password(self, user_id: str, new_password: str) -> None:
+        user = await self._users.find_by_id(user_id)
+        if not user:
+            raise UserNotFoundError(user_id)
+        await self._users.update_password(user_id, self._passwords.hash(new_password))
+        await self._tokens.delete_by_user(user_id)
+
+    def set_registration_enabled(self, enabled: bool) -> None:
+        self._registration_enabled = enabled
+
+    def is_registration_enabled(self) -> bool:
+        return self._registration_enabled
 
 
 @component

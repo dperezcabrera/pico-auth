@@ -1,6 +1,7 @@
 """Tests covering uncovered code paths in pico-auth."""
 
 import pytest
+from fastapi import FastAPI
 from pico_boot import init
 from pico_ioc import DictSource, configuration
 
@@ -403,6 +404,205 @@ class TestGroupServiceCoverage:
         data = resp.json()
         assert data["name"] == "NewPartial"
         assert data["description"] == "Original"
+
+
+# ===================================================================
+# Suspended user login
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestSuspendedUser:
+    async def test_login_suspended_user(self, app, service):
+        user = await service.register("suspended@cov.com", "pass", "Susp")
+        # Suspend the user via direct DB update
+        async with service._users._sm.transaction() as session:
+            from pico_auth.models import User
+
+            u = await session.get(User, user.id)
+            u.status = "suspended"
+            await session.flush()
+        from pico_auth.errors import UserSuspendedError
+
+        with pytest.raises(UserSuspendedError):
+            await service.login("suspended@cov.com", "pass")
+
+
+# ===================================================================
+# Expired refresh token
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestExpiredRefreshToken:
+    async def test_refresh_expired_token(self, app, service):
+        """Refresh with an expired token raises TokenExpiredError."""
+        from datetime import UTC, datetime, timedelta
+
+        from pico_auth.errors import TokenExpiredError
+
+        user = await service.register("expired@cov.com", "pass", "Exp")
+        tokens = await service.login("expired@cov.com", "pass")
+        # Manually expire the stored refresh token
+        import hashlib
+
+        raw = tokens["refresh_token"]
+        token_hash = hashlib.sha256(raw.encode()).hexdigest()
+        stored = await service._tokens.find_by_hash(token_hash)
+        stored.expires_at = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+        async with service._tokens._sm.transaction() as session:
+            await session.merge(stored)
+
+        with pytest.raises(TokenExpiredError):
+            await service.refresh(raw)
+
+
+# ===================================================================
+# Refresh with deleted user
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestRefreshDeletedUser:
+    async def test_refresh_token_for_deleted_user(self, app, service):
+        """Refresh token valid but user no longer exists."""
+        from pico_auth.errors import TokenInvalidError
+
+        user = await service.register("ghost@cov.com", "pass", "Ghost")
+        tokens = await service.login("ghost@cov.com", "pass")
+        # Delete user directly via DB
+        async with service._users._sm.transaction() as session:
+            from sqlalchemy import delete as sql_delete
+
+            from pico_auth.models import User
+
+            await session.execute(sql_delete(User).where(User.id == user.id))
+
+        with pytest.raises(TokenInvalidError):
+            await service.refresh(tokens["refresh_token"])
+
+
+# ===================================================================
+# Service-level: get_profile and change_password for nonexistent user
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestServiceEdgeCases:
+    async def test_get_profile_nonexistent(self, app, service):
+        from pico_auth.errors import UserNotFoundError
+
+        with pytest.raises(UserNotFoundError):
+            await service.get_profile("no-such-id")
+
+    async def test_change_password_nonexistent(self, app, service):
+        from pico_auth.errors import UserNotFoundError
+
+        with pytest.raises(UserNotFoundError):
+            await service.change_password("no-such-id", "old", "new")
+
+    async def test_admin_create_user_invalid_role(self, app, service):
+        from pico_auth.errors import AuthError
+
+        with pytest.raises(AuthError, match="Invalid role"):
+            await service.admin_create_user("bad@cov.com", "pass", "Bad", role="dictator")
+
+
+# ===================================================================
+# Routes: admin_create_user duplicate email
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestAdminCreateUserDuplicate:
+    async def _admin_login(self, client, service):
+        await service.ensure_admin("admdup@test.com", "adminpass")
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "admdup@test.com", "password": "adminpass"},
+        )
+        return resp.json()["access_token"]
+
+    async def test_admin_create_duplicate_returns_error(self, client, service):
+        token = await self._admin_login(client, service)
+        headers = {"Authorization": f"Bearer {token}"}
+        await client.post(
+            f"{API}/users",
+            json={"email": "admcreated@cov.com", "password": "pass"},
+            headers=headers,
+        )
+        resp = await client.post(
+            f"{API}/users",
+            json={"email": "admcreated@cov.com", "password": "pass2"},
+            headers=headers,
+        )
+        assert "error" in resp.json()
+
+
+# ===================================================================
+# Email credentials: unconfigured token
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestEmailCredsUnconfigured:
+    async def test_no_token_configured_returns_403(self, tmp_path):
+        """When email_credentials_token is empty, all requests get 403."""
+        db_path = tmp_path / "test.db"
+        auth_data = tmp_path / "auth-keys"
+        config = configuration(
+            DictSource(
+                {
+                    "auth": {
+                        "data_dir": str(auth_data),
+                        "access_token_expire_minutes": 15,
+                        "refresh_token_expire_days": 7,
+                        "issuer": "http://test",
+                        "audience": "pico-bot",
+                        "auto_create_admin": False,
+                        "admin_email": "",
+                        "admin_password": "",
+                        "registration_enabled": True,
+                        "email_credentials_token": "",
+                    },
+                    "database": {
+                        "url": f"sqlite+aiosqlite:///{db_path}",
+                        "echo": False,
+                    },
+                    "fastapi": {"title": "Test", "version": "0.1.0"},
+                    "auth_client": {
+                        "enabled": True,
+                        "issuer": "http://test",
+                        "audience": "pico-bot",
+                    },
+                }
+            )
+        )
+        from pico_sqlalchemy import SessionManager
+
+        from pico_auth.schema import create_tables
+
+        container = init(modules=["pico_auth"], config=config)
+        sm = container.get(SessionManager)
+        await create_tables(sm)
+        app = container.get(FastAPI)
+
+        from httpx import ASGITransport, AsyncClient
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get(
+                "/api/v1/email-credentials/some-agent",
+                headers={"Authorization": "Bearer any-token"},
+            )
+            assert resp.status_code == 403
+
+    async def test_missing_bearer_prefix_returns_401(self, client):
+        resp = await client.get(
+            "/api/v1/email-credentials/some-agent",
+            headers={"Authorization": "Token bad"},
+        )
+        assert resp.status_code == 401
 
 
 class TestPasswordService:

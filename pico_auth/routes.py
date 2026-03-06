@@ -7,7 +7,7 @@ from pico_client_auth import SecurityContext, allow_anonymous, requires_role
 from pico_fastapi import controller, delete, get, post, put
 
 from pico_auth.config import AuthSettings
-from pico_auth.errors import AuthError
+from pico_auth.errors import AuthError, RegistrationDisabledError
 from pico_auth.jwt_provider import JWTProvider
 from pico_auth.service import AuthService, EmailCredentialService, GroupService
 
@@ -36,6 +36,8 @@ class AuthController:
                 "role": user.role,
                 "status": user.status,
             }
+        except RegistrationDisabledError:
+            raise HTTPException(status_code=403, detail="Public registration is disabled")
         except AuthError as exc:
             return {"error": exc.message}
 
@@ -97,6 +99,40 @@ class AuthController:
         except AuthError as exc:
             return {"error": exc.message}
 
+    @get("/users/registration")
+    @requires_role("superadmin", "org_admin")
+    async def get_registration_status(self) -> dict[str, Any]:
+        return {"registration_enabled": self._service.is_registration_enabled()}
+
+    @put("/users/registration")
+    @requires_role("superadmin", "org_admin")
+    async def set_registration_status(
+        self,
+        enabled: bool = Body(..., embed=True),
+    ) -> dict[str, Any]:
+        self._service.set_registration_enabled(enabled)
+        return {"registration_enabled": self._service.is_registration_enabled()}
+
+    @post("/users")
+    @requires_role("superadmin", "org_admin")
+    async def admin_create_user(
+        self,
+        email: str = Body(...),
+        password: str = Body(...),
+        display_name: str = Body(""),
+        role: str = Body("viewer"),
+    ) -> dict[str, Any]:
+        try:
+            user = await self._service.admin_create_user(email, password, display_name, role)
+            return {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "status": user.status,
+            }
+        except AuthError as exc:
+            return {"error": exc.message}
+
     @get("/users")
     @requires_role("superadmin", "org_admin")
     async def list_users(self) -> dict[str, Any]:
@@ -115,6 +151,19 @@ class AuthController:
             ],
             "total": len(users),
         }
+
+    @put("/users/{user_id}/password")
+    @requires_role("superadmin", "org_admin")
+    async def admin_reset_password(
+        self,
+        user_id: str,
+        new_password: str = Body(..., embed=True),
+    ) -> dict[str, Any]:
+        try:
+            await self._service.admin_reset_password(user_id, new_password)
+            return {"message": "Password reset"}
+        except AuthError as exc:
+            return {"error": exc.message}
 
     @put("/users/{user_id}/role")
     @requires_role("superadmin", "org_admin")
@@ -361,7 +410,9 @@ class EmailCredentialController:
     @get("/{agent_id}")
     @allow_anonymous
     async def get_by_agent(
-        self, agent_id: str, authorization: str = Header(...),
+        self,
+        agent_id: str,
+        authorization: str = Header(...),
     ) -> dict[str, Any]:
         self._verify(authorization)
         try:
@@ -406,7 +457,9 @@ class EmailCredentialController:
     @delete("/{agent_id}")
     @allow_anonymous
     async def delete_credential(
-        self, agent_id: str, authorization: str = Header(...),
+        self,
+        agent_id: str,
+        authorization: str = Header(...),
     ) -> dict[str, Any]:
         self._verify(authorization)
         await self._service.delete(agent_id)

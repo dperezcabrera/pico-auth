@@ -27,6 +27,11 @@ class TokenInvalidError(AuthError):
         super().__init__("Invalid token")
 
 
+class RegistrationDisabledError(AuthError):
+    def __init__(self):
+        super().__init__("Public registration is disabled")
+
+
 class UserNotFoundError(AuthError):
     def __init__(self, user_id: str):
         super().__init__(f"User not found: {user_id}")

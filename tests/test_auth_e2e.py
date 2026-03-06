@@ -743,3 +743,165 @@ class TestServiceTokens:
             headers=self._auth(viewer_token),
         )
         assert resp.status_code == 403
+
+
+# ===================================================================
+# Registration toggle & admin user management
+# ===================================================================
+
+
+@pytest.mark.asyncio
+class TestRegistrationToggle:
+    async def _get_admin_token(self, client, container):
+        from pico_auth.service import AuthService
+
+        service = container.get(AuthService)
+        await service.ensure_admin("regadmin@test.com", "adminpass")
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "regadmin@test.com", "password": "adminpass"},
+        )
+        return resp.json()["access_token"]
+
+    def _auth(self, token):
+        return {"Authorization": f"Bearer {token}"}
+
+    async def test_registration_enabled_by_default(self, client, container):
+        token = await self._get_admin_token(client, container)
+        resp = await client.get(
+            f"{API}/users/registration",
+            headers=self._auth(token),
+        )
+        assert resp.json()["registration_enabled"] is True
+
+    async def test_disable_registration_blocks_public_register(self, client, container):
+        token = await self._get_admin_token(client, container)
+        # Disable registration
+        resp = await client.put(
+            f"{API}/users/registration",
+            json={"enabled": False},
+            headers=self._auth(token),
+        )
+        assert resp.json()["registration_enabled"] is False
+
+        # Public registration should fail with 403
+        resp = await client.post(
+            f"{API}/register",
+            json={"email": "blocked@test.com", "password": "pass"},
+        )
+        assert resp.status_code == 403
+
+    async def test_admin_create_user_with_registration_disabled(self, client, container):
+        token = await self._get_admin_token(client, container)
+        # Ensure registration is disabled
+        await client.put(
+            f"{API}/users/registration",
+            json={"enabled": False},
+            headers=self._auth(token),
+        )
+
+        # Admin can still create users
+        resp = await client.post(
+            f"{API}/users",
+            json={
+                "email": "adminmade@test.com",
+                "password": "pass",
+                "display_name": "Admin Made",
+                "role": "operator",
+            },
+            headers=self._auth(token),
+        )
+        data = resp.json()
+        assert "error" not in data
+        assert data["email"] == "adminmade@test.com"
+        assert data["role"] == "operator"
+
+    async def test_re_enable_registration(self, client, container):
+        token = await self._get_admin_token(client, container)
+        # Disable then re-enable
+        await client.put(
+            f"{API}/users/registration",
+            json={"enabled": False},
+            headers=self._auth(token),
+        )
+        await client.put(
+            f"{API}/users/registration",
+            json={"enabled": True},
+            headers=self._auth(token),
+        )
+
+        # Public registration should work again
+        resp = await client.post(
+            f"{API}/register",
+            json={"email": "reenabled@test.com", "password": "pass"},
+        )
+        data = resp.json()
+        assert "error" not in data
+        assert data["email"] == "reenabled@test.com"
+
+    async def test_admin_reset_password(self, client, container):
+        token = await self._get_admin_token(client, container)
+        # Create a user
+        reg_resp = await client.post(
+            f"{API}/register",
+            json={"email": "resetme@test.com", "password": "oldpass"},
+        )
+        user_id = reg_resp.json()["id"]
+
+        # Admin resets password
+        resp = await client.put(
+            f"{API}/users/{user_id}/password",
+            json={"new_password": "newpass"},
+            headers=self._auth(token),
+        )
+        assert resp.json()["message"] == "Password reset"
+
+        # Login with new password works
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "resetme@test.com", "password": "newpass"},
+        )
+        assert "access_token" in resp.json()
+
+        # Login with old password fails
+        resp = await client.post(
+            f"{API}/login",
+            json={"email": "resetme@test.com", "password": "oldpass"},
+        )
+        assert "error" in resp.json()
+
+    async def test_reset_password_nonexistent_user(self, client, container):
+        token = await self._get_admin_token(client, container)
+        resp = await client.put(
+            f"{API}/users/nonexistent/password",
+            json={"new_password": "newpass"},
+            headers=self._auth(token),
+        )
+        assert "error" in resp.json()
+
+    async def test_viewer_cannot_reset_password(self, client, container):
+        # Create admin and a target user
+        admin_token = await self._get_admin_token(client, container)
+        reg_resp = await client.post(
+            f"{API}/register",
+            json={"email": "target@test.com", "password": "pass"},
+        )
+        user_id = reg_resp.json()["id"]
+
+        # Login as viewer
+        await client.post(
+            f"{API}/register",
+            json={"email": "evilviewer@test.com", "password": "pass"},
+        )
+        login_resp = await client.post(
+            f"{API}/login",
+            json={"email": "evilviewer@test.com", "password": "pass"},
+        )
+        viewer_token = login_resp.json()["access_token"]
+
+        resp = await client.put(
+            f"{API}/users/{user_id}/password",
+            json={"new_password": "hacked"},
+            headers=self._auth(viewer_token),
+        )
+        assert resp.status_code == 403

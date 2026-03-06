@@ -211,7 +211,7 @@ class ServiceTokenRepository:
                 )
                 .values(revoked_at=timestamp)
             )
-            return result.rowcount > 0
+            return result.rowcount > 0  # type: ignore[attr-defined]
 
     async def list_active(self) -> list[ServiceToken]:
         async with self._sm.transaction(read_only=True) as session:
