@@ -11,9 +11,12 @@ pip install -e ".[dev]"
 ## Running Tests
 
 ```bash
-pytest tests/ -v                # Run tests
-tox                             # Full matrix (3.11-3.14)
+pytest tests/ -v                          # Unit and integration tests
+tox                                       # Full matrix (3.11-3.14)
+pytest tests/test_docker_e2e.py -m docker -v  # Docker E2E tests
 ```
+
+Docker E2E tests require Docker and the `pico-client-auth` sibling directory. They are excluded from the default suite — use `-m docker` to run them.
 
 ## Code Style
 

@@ -203,7 +203,12 @@ tox
 
 # Lint
 ruff check pico_auth/ tests/
+
+# Docker E2E tests (requires Docker and ../pico-client-auth)
+pytest tests/test_docker_e2e.py -m docker -v
 ```
+
+Docker E2E tests build a local image (`Dockerfile.local`), start a container, and run HTTP tests against it. They are excluded from the default test suite — use `-m docker` to run them. See [Docker E2E Test](./docs/docker-e2e-test.md) for details.
 
 ---
 

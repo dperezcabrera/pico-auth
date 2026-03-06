@@ -54,11 +54,18 @@ curl http://localhost:8100/api/v1/auth/me \
 ## Running Tests
 
 ```bash
+# Unit and integration tests
 pytest tests/ -v
+
+# Docker E2E tests (requires Docker and ../pico-client-auth)
+pytest tests/test_docker_e2e.py -m docker -v
 ```
+
+Docker E2E tests are excluded from the default test suite. They build a local Docker image, start a container, and run HTTP tests against it.
 
 ## Next Steps
 
 - [Configuration](./configuration.md) - Customize settings
 - [API Endpoints](./api-endpoints.md) - Full API reference
 - [Authentication Flow](./auth-flow.md) - Understand JWT lifecycle
+- [Docker E2E Test](./docker-e2e-test.md) - Full Docker testing guide
