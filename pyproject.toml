@@ -61,10 +61,13 @@ include = ["pico_auth*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
+markers = ["docker: end-to-end tests against a Docker container (deselected by default)"]
+addopts = "-m 'not docker'"
 
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+exclude = ["pico_auth/_version.py"]
 
 [tool.ruff.lint]
 preview = true
