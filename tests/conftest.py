@@ -25,6 +25,7 @@ def container(tmp_path):
                     "refresh_token_expire_days": 7,
                     "issuer": "http://test",
                     "audience": "pico-bot",
+                    "algorithm": "RS256",
                     "auto_create_admin": False,
                     "admin_email": "admin@test.local",
                     "admin_password": "admin",

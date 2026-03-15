@@ -4,6 +4,7 @@ auth:
   refresh_token_expire_days: 7
   issuer: "http://localhost:8100"
   audience: "pico-bot"
+  algorithm: "RS256"
   auto_create_admin: true
   admin_email: "admin@pico.local"
   admin_password: "admin"
@@ -17,7 +18,11 @@ auth_client:
   enabled: true
   issuer: "http://localhost:8100"
   audience: "pico-bot"
+  accepted_algorithms:
+    - "RS256"
+    - "ML-DSA-65"
+    - "ML-DSA-87"
 
 fastapi:
   title: "Pico Auth API"
-  version: "0.1.0"
+  version: "0.2.0"

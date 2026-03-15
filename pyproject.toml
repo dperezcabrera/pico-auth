@@ -28,7 +28,7 @@ dependencies = [
     "pico-boot>=0.1.1",
     "pico-fastapi>=0.3.0",
     "pico-sqlalchemy>=0.3.0",
-    "pico-client-auth>=0.3.0",
+    "pico-client-auth>=0.4.1",
     "python-jose[cryptography]>=3.5",
     "bcrypt>=5.0",
     "aiosqlite>=0.22",
@@ -36,6 +36,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pqc = ["liboqs-python >= 0.11.0"]
 dev = [
     "pytest>=9.0",
     "pytest-asyncio>=1.3",
