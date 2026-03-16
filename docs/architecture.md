@@ -56,9 +56,16 @@ container = init(modules=["pico_auth"], config=config)
 
 ## Key Storage
 
-RSA keys are PEM files stored in `~/.pico-auth/`:
+Keys are stored in `~/.pico-auth/` and auto-generated on first run.
 
-- `private.pem` (mode 0600) - Used for JWT signing
-- `public.pem` - Used for JWT verification and JWKS endpoint
+**RSA (RS256):**
 
-Keys are auto-generated on first run if they don't exist.
+- `private.pem` (mode 0600) — Used for JWT signing
+- `public.pem` — Used for JWT verification and JWKS endpoint
+
+**ML-DSA (ML-DSA-65, ML-DSA-87):**
+
+- `pqc_secret.bin` (mode 0600) — Used for JWT signing
+- `pqc_public.bin` — Used for JWT verification and JWKS endpoint
+
+The algorithm is selected via `auth.algorithm` in configuration. JWKS serves RSA keys (`kty: "RSA"`) or ML-DSA keys (`kty: "AKP"`) accordingly.

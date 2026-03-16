@@ -101,7 +101,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8100 (Press CTRL+C to quit)
 curl -s http://localhost:8100/.well-known/openid-configuration | jq .
 ```
 
-Expected: a JSON document with `issuer`, `token_endpoint`, `jwks_uri`, and `id_token_signing_alg_values_supported: ["RS256"]`.
+Expected: a JSON document with `issuer`, `token_endpoint`, `jwks_uri`, and `id_token_signing_alg_values_supported` (e.g. `["RS256"]` or `["ML-DSA-65"]` depending on configured algorithm).
 
 ### 4. JWKS Endpoint
 
@@ -109,7 +109,7 @@ Expected: a JSON document with `issuer`, `token_endpoint`, `jwks_uri`, and `id_t
 curl -s http://localhost:8100/api/v1/auth/jwks | jq .
 ```
 
-Expected: a `keys` array with at least one RSA public key (`kty: "RSA"`, `alg: "RS256"`).
+Expected: a `keys` array with at least one key. With default config: `kty: "RSA"`, `alg: "RS256"`. With ML-DSA: `kty: "AKP"`, `alg: "ML-DSA-65"` or `"ML-DSA-87"`.
 
 ### 5. Register a New User
 

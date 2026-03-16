@@ -64,7 +64,7 @@ Exchange a refresh token for new token pair (rotation).
 
 JSON Web Key Set for token verification.
 
-**Response:**
+**Response (RS256):**
 ```json
 {
   "keys": [{
@@ -74,6 +74,19 @@ JSON Web Key Set for token verification.
     "alg": "RS256",
     "n": "...",
     "e": "AQAB"
+  }]
+}
+```
+
+**Response (ML-DSA-65):**
+```json
+{
+  "keys": [{
+    "kty": "AKP",
+    "kid": "pico-auth-1",
+    "use": "sig",
+    "alg": "ML-DSA-65",
+    "pub": "..."
   }]
 }
 ```

@@ -6,11 +6,12 @@ Welcome to the official documentation for **Pico-Auth**, a minimal JWT authentic
 
 Pico-Auth is a ready-to-run authentication server built on the [pico-framework](https://github.com/dperezcabrera/pico-ioc) stack. It provides:
 
-- **RS256 JWT tokens** with auto-generated RSA key pairs
+- **JWT tokens** with auto-generated key pairs (RS256 default, ML-DSA-65/87 optional)
 - **Refresh token rotation** with SHA-256 hashed storage
 - **Role-based access control** (superadmin, org_admin, operator, viewer)
 - **Group management** with CRUD API, membership, and `groups` JWT claim
 - **OIDC discovery** endpoints for service-to-service integration
+- **Post-quantum ready**: ML-DSA-65 / ML-DSA-87 signing via optional `pqc` extra
 - **Zero-config startup** with SQLite and auto-created admin
 
 ## Quick Links

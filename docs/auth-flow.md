@@ -14,7 +14,7 @@ sequenceDiagram
 
     C->>A: POST /login (email, password)
     A->>DB: Verify credentials
-    A->>A: Generate RS256 JWT
+    A->>A: Generate JWT (RS256 or ML-DSA)
     A->>DB: Store refresh token (SHA-256 hash)
     A-->>C: access_token + refresh_token
 
@@ -31,9 +31,9 @@ sequenceDiagram
 
 ## JWT Access Token
 
-- **Algorithm**: RS256 (RSA + SHA-256)
+- **Algorithm**: Configurable via `auth.algorithm` — RS256 (default), ML-DSA-65, or ML-DSA-87
 - **Lifetime**: 15 minutes (configurable)
-- **Key management**: Auto-generated RSA 2048-bit key pair stored as PEM files
+- **Key management**: Auto-generated key pair stored in `~/.pico-auth/` (RSA PEM or ML-DSA binary)
 
 ### Claims
 

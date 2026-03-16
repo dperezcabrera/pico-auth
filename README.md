@@ -11,12 +11,13 @@
 
 Pico-Auth is a ready-to-run authentication server built on top of the [pico-framework](https://github.com/dperezcabrera/pico-ioc) stack. It provides:
 
-- **RS256 JWT tokens** with auto-generated RSA key pairs
+- **JWT tokens** with auto-generated key pairs (RS256 default, ML-DSA-65/87 optional)
 - **Refresh token rotation** with SHA-256 hashed storage
 - **RBAC** with four built-in roles: `superadmin`, `org_admin`, `operator`, `viewer`
 - **Group management** with CRUD API, membership, and `groups` JWT claim
 - **OIDC discovery** endpoints (`.well-known/openid-configuration`, JWKS)
 - **Bcrypt password hashing** (72-byte input limit enforced)
+- **Post-quantum ready**: ML-DSA-65 / ML-DSA-87 signing via optional `pqc` extra
 - **Zero-config startup** with auto-created admin user
 
 > Requires Python 3.11+
@@ -42,6 +43,9 @@ Pico-Auth uses the full Pico stack with dependency injection:
 
 ```bash
 pip install -e ".[dev]"
+
+# With post-quantum (ML-DSA) support
+pip install -e ".[dev,pqc]"
 ```
 
 ---
@@ -57,7 +61,7 @@ python -m pico_auth.main
 The server starts on `http://localhost:8100` with:
 - An auto-created admin user (`admin@pico.local` / `admin`)
 - SQLite database at `auth.db`
-- RSA keys at `~/.pico-auth/`
+- Auto-generated keys at `~/.pico-auth/` (RSA PEM or ML-DSA binary, depending on algorithm)
 
 ### 2. Register a User
 
@@ -123,11 +127,12 @@ All settings are loaded from `application.yaml` and can be overridden with envir
 
 ```yaml
 auth:
-  data_dir: "~/.pico-auth"              # RSA key storage
+  data_dir: "~/.pico-auth"              # Key storage directory
   access_token_expire_minutes: 15        # JWT lifetime
   refresh_token_expire_days: 7           # Refresh token lifetime
   issuer: "http://localhost:8100"        # JWT issuer claim
   audience: "pico-bot"                   # JWT audience claim
+  algorithm: "RS256"                     # RS256, ML-DSA-65, or ML-DSA-87
   auto_create_admin: true                # Create admin on startup
   admin_email: "admin@pico.local"        # Default admin email
   admin_password: "admin"                # Default admin password
@@ -140,15 +145,22 @@ auth_client:
   enabled: true                          # Enable auth middleware
   issuer: "http://localhost:8100"        # Must match auth.issuer
   audience: "pico-bot"                   # Must match auth.audience
+  accepted_algorithms:                   # Algorithms accepted for verification
+    - "RS256"
+    - "ML-DSA-65"
+    - "ML-DSA-87"
 
 fastapi:
   title: "Pico Auth API"
-  version: "0.1.0"
+  version: "0.2.0"
 ```
 
 Environment variable override example:
 ```bash
 AUTH_ISSUER=https://auth.myapp.com AUTH_ADMIN_PASSWORD=strong-password python -m pico_auth.main
+
+# With ML-DSA-65 post-quantum algorithm
+AUTH_ALGORITHM=ML-DSA-65 python -m pico_auth.main
 ```
 
 ---

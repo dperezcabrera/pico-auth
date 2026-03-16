@@ -4,9 +4,16 @@
 
 RS256 (asymmetric) allows other services to verify tokens using the public key without knowing the signing secret. The JWKS endpoint exposes the public key for service-to-service validation.
 
-## Where are the RSA keys stored?
+## What about post-quantum algorithms?
 
-By default in `~/.pico-auth/`. The directory is created automatically on first run. The private key file has `0600` permissions. Configure with `AUTH_DATA_DIR`.
+Pico-Auth supports ML-DSA-65 (NIST Level 3) and ML-DSA-87 (NIST Level 5) as alternatives to RS256. Set `AUTH_ALGORITHM=ML-DSA-65` and install the `pqc` extra (`pip install pico-auth[pqc]`). ML-DSA uses `liboqs-python` for signing and verification.
+
+## Where are the keys stored?
+
+By default in `~/.pico-auth/`. The directory is created automatically on first run. The private/secret key file has `0600` permissions. Configure with `AUTH_DATA_DIR`.
+
+- **RSA**: `private.pem` + `public.pem`
+- **ML-DSA**: `pqc_secret.bin` + `pqc_public.bin`
 
 ## Can I use PostgreSQL instead of SQLite?
 

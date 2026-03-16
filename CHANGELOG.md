@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ---
 
+## v0.3.0 — Post-Quantum (ML-DSA) Support (2026-03-15)
+
+### Added
+
+- **Configurable JWT algorithm** — `auth.algorithm` setting supports `RS256` (default), `ML-DSA-65`, and `ML-DSA-87`
+- **ML-DSA key generation** — Auto-generates ML-DSA key pairs (`pqc_secret.bin`, `pqc_public.bin`) via `liboqs-python`
+- **ML-DSA token signing** — `JWTProvider` creates and verifies ML-DSA-signed JWTs
+- **PQC JWKS** — JWKS endpoint serves `kty: "AKP"` keys with `pub` field for ML-DSA algorithms
+- **`pqc` optional extra** — `pip install pico-auth[pqc]` installs `liboqs-python`
+- **`auth_client.accepted_algorithms`** — Accepts RS256 + ML-DSA-65 + ML-DSA-87 by default in `application.yaml`
+- PQC test suite with 18 tests using mocked oqs (no liboqs required)
+
+### Changed
+
+- `pico-client-auth` dependency bumped to `>=0.4.1` (PQC verification support)
+
+---
+
 ## v0.2.0 — Group Management (2026-02-21)
 
 ### Added

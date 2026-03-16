@@ -20,7 +20,7 @@ pico_auth/
   __init__.py          # Package exports
   config.py            # AuthSettings (@configured, prefix="auth")
   errors.py            # Error hierarchy (AuthError base)
-  jwt_provider.py      # RS256 JWT creation/validation, JWKS, OIDC discovery
+  jwt_provider.py      # JWT creation/validation (RS256/ML-DSA), JWKS, OIDC discovery
   local_auth_configurer.py # Compatibility patches for pico-client-auth + pico-fastapi
   local_jwks_provider.py  # Local JWKS provider (avoids HTTP self-call)
   main.py              # Entrypoint: create_container() + uvicorn server
@@ -34,6 +34,7 @@ tests/
   conftest.py          # Fixtures: container, app, client (in-memory SQLite)
   test_auth_e2e.py     # Full HTTP flow tests (27 tests)
   test_coverage_gaps.py # Coverage gap tests (24 tests)
+  test_jwt_provider_pqc.py # PQC/ML-DSA tests with mocked oqs (18 tests)
 application.yaml       # Default config (SQLite, port 8100, auto admin)
 ```
 
@@ -41,7 +42,7 @@ application.yaml       # Default config (SQLite, port 8100, auto admin)
 
 - **DI wiring**: All components use `@component` from pico-ioc. `AuthSettings` uses `@configured(prefix="auth", mapping="tree")`.
 - **Routes**: `@controller(prefix="/api/v1/auth")` for auth endpoints, `@controller(prefix="/.well-known")` for OIDC.
-- **JWT**: RS256 with auto-generated RSA keys stored in `~/.pico-auth/`. Keys are PEM files created on first run.
+- **JWT**: Configurable algorithm via `auth.algorithm` (RS256 default, ML-DSA-65, ML-DSA-87). RSA keys stored as PEM files, ML-DSA keys as binary files in `~/.pico-auth/`. Keys are auto-generated on first run.
 - **Refresh tokens**: Stored as SHA-256 hashes. Rotation on use (old deleted, new created).
 - **Roles**: `superadmin`, `org_admin`, `operator`, `viewer`. Admin endpoints require `superadmin` or `org_admin`.
 - **Password hashing**: Direct bcrypt with 72-byte truncation.
