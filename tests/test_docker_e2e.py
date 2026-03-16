@@ -84,9 +84,7 @@ def docker_container():
         time.sleep(0.5)
 
     if not ready:
-        logs = subprocess.run(
-            ["docker", "logs", container_id], capture_output=True, text=True
-        )
+        logs = subprocess.run(["docker", "logs", container_id], capture_output=True, text=True)
         subprocess.run(["docker", "rm", "-f", container_id], check=True)
         pytest.fail(f"Container never became ready.\nLogs:\n{logs.stdout}\n{logs.stderr}")
 
@@ -185,9 +183,7 @@ class TestRegisterLoginTokens:
         tokens = login.json()
 
         # Refresh
-        r = httpx.post(
-            f"{API}/refresh", json=tokens["refresh_token"], timeout=5
-        )
+        r = httpx.post(f"{API}/refresh", json=tokens["refresh_token"], timeout=5)
         data = r.json()
         assert "access_token" in data
         assert "refresh_token" in data
@@ -254,9 +250,7 @@ class TestAdminOperations:
 class TestRegistrationToggle:
     def test_registration_enabled_by_default(self, docker_container):
         admin_token = _admin_login()["access_token"]
-        r = httpx.get(
-            f"{API}/users/registration", headers=_auth(admin_token), timeout=5
-        )
+        r = httpx.get(f"{API}/users/registration", headers=_auth(admin_token), timeout=5)
         assert r.json()["registration_enabled"] is True
 
     def test_disable_and_reenable_registration(self, docker_container):
@@ -374,9 +368,7 @@ class TestViewerRestrictions:
         assert r.status_code == 403
 
         # Registration status -> 403
-        r = httpx.get(
-            f"{API}/users/registration", headers=_auth(viewer_token), timeout=5
-        )
+        r = httpx.get(f"{API}/users/registration", headers=_auth(viewer_token), timeout=5)
         assert r.status_code == 403
 
         # Toggle registration -> 403
