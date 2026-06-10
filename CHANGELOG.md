@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ---
 
-## v0.3.0 — Post-Quantum (ML-DSA) Support (2026-03-15)
+## v0.3.0 — Post-Quantum (ML-DSA) Support, Email Credentials & Admin Management (2026-06-10)
 
 ### Added
 
+- **EmailCredential API** — `EmailCredential` model, repository, service, and REST endpoints at `/api/v1/email-credentials`, protected by a service token (`auth.email_credentials_token`)
+- **Registration toggle** — `auth.registration_enabled` setting (default `true`); when disabled, public registration returns 403 and a runtime admin endpoint exposes/controls the flag
+- **Admin user management** — admin endpoints for listing and managing users
+- **Docker E2E tests** — `Dockerfile.local` plus documented E2E workflow in README, getting-started, and contributing guides
 - **Configurable JWT algorithm** — `auth.algorithm` setting supports `RS256` (default), `ML-DSA-65`, and `ML-DSA-87`
 - **ML-DSA key generation** — Auto-generates ML-DSA key pairs (`pqc_secret.bin`, `pqc_public.bin`) via `liboqs-python`
 - **ML-DSA token signing** — `JWTProvider` creates and verifies ML-DSA-signed JWTs
