@@ -79,3 +79,4 @@ dmypy.json
 *.pem
 auth.db
 pico_client_auth_wheel/
+pico_auth/_version.py
