@@ -1,6 +1,8 @@
 """Auth business logic: register, login, refresh, profile, roles."""
 
 import hashlib
+import hmac
+import secrets
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -39,15 +41,19 @@ def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _hash_token(raw: str) -> str:
-    return hashlib.sha256(raw.encode()).hexdigest()
+def _hash_token(raw: str, key: bytes) -> str:
+    # SECURITY: keyed HMAC-SHA256 (not bare SHA-256) so stored token hashes
+    # are not vulnerable to offline precomputation/rainbow-table lookup.
+    return hmac.new(key, raw.encode(), hashlib.sha256).hexdigest()
 
 
-def _build_refresh_token(user_id: str, raw_token: str, expire_days: int) -> RefreshToken:
+def _build_refresh_token(
+    user_id: str, raw_token: str, expire_days: int, key: bytes
+) -> RefreshToken:
     return RefreshToken(
         id=uuid4().hex[:12],
         user_id=user_id,
-        token_hash=_hash_token(raw_token),
+        token_hash=_hash_token(raw_token, key),
         expires_at=(datetime.now(UTC) + timedelta(days=expire_days)).isoformat(),
         created_at=_now_iso(),
     )
@@ -75,6 +81,8 @@ class AuthService:
         self._jwt = jwt_provider
         self._settings = settings
         self._registration_enabled = settings.registration_enabled
+        # Server-side secret key for HMAC-hashing stored refresh/service tokens.
+        self._token_key = jwt_provider.token_hash_key()
 
     async def register(
         self,
@@ -122,7 +130,7 @@ class AuthService:
         )
         raw_refresh = self._jwt.create_refresh_token()
         refresh = _build_refresh_token(
-            user.id, raw_refresh, self._settings.refresh_token_expire_days
+            user.id, raw_refresh, self._settings.refresh_token_expire_days, self._token_key
         )
         await self._tokens.save(refresh)
 
@@ -134,7 +142,7 @@ class AuthService:
         }
 
     async def refresh(self, raw_refresh_token: str) -> dict:
-        stored = await self._tokens.find_by_hash(_hash_token(raw_refresh_token))
+        stored = await self._tokens.find_by_hash(_hash_token(raw_refresh_token, self._token_key))
         if not stored:
             raise TokenInvalidError()
 
@@ -150,7 +158,7 @@ class AuthService:
         await self._tokens.delete_by_hash(stored.token_hash)
         new_raw = self._jwt.create_refresh_token()
         new_refresh = _build_refresh_token(
-            user.id, new_raw, self._settings.refresh_token_expire_days
+            user.id, new_raw, self._settings.refresh_token_expire_days, self._token_key
         )
         await self._tokens.save(new_refresh)
 
@@ -211,13 +219,11 @@ class AuthService:
         if existing:
             return {"id": existing.id, "name": existing.name, "already_exists": True}
 
-        import secrets
-
         raw_token = f"pico_svc_{secrets.token_hex(32)}"
         token = ServiceToken(
             id=uuid4().hex[:12],
             name=name,
-            token_hash=_hash_token(raw_token),
+            token_hash=_hash_token(raw_token, self._token_key),
             role=role,
             org_id=org_id,
             description=description,
@@ -227,7 +233,7 @@ class AuthService:
         return {"id": token.id, "name": name, "token": raw_token, "already_exists": False}
 
     async def validate_service_token(self, raw_token: str) -> ServiceToken:
-        token = await self._service_tokens.find_by_hash(_hash_token(raw_token))
+        token = await self._service_tokens.find_by_hash(_hash_token(raw_token, self._token_key))
         if not token:
             raise TokenInvalidError()
         return token

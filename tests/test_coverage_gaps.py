@@ -443,11 +443,12 @@ class TestExpiredRefreshToken:
 
         user = await service.register("expired@cov.com", "pass", "Exp")
         tokens = await service.login("expired@cov.com", "pass")
-        # Manually expire the stored refresh token
-        import hashlib
+        # Manually expire the stored refresh token. Hash it the same way the
+        # service does (keyed HMAC, not bare SHA-256) to locate the stored row.
+        from pico_auth.service import _hash_token
 
         raw = tokens["refresh_token"]
-        token_hash = hashlib.sha256(raw.encode()).hexdigest()
+        token_hash = _hash_token(raw, service._token_key)
         stored = await service._tokens.find_by_hash(token_hash)
         stored.expires_at = (datetime.now(UTC) - timedelta(days=1)).isoformat()
         async with service._tokens._sm.transaction() as session:

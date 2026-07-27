@@ -56,8 +56,6 @@
 
 ::: pico_auth.errors.UserNotFoundError
 
-::: pico_auth.errors.InsufficientPermissionsError
-
 ::: pico_auth.errors.UserSuspendedError
 
 ::: pico_auth.errors.GroupNotFoundError
