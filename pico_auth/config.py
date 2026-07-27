@@ -19,9 +19,11 @@ class AuthSettings:
     issuer: str = "http://localhost:8100"
     audience: str = "pico-bot"
     algorithm: str = "RS256"
-    auto_create_admin: bool = True
+    # SECURITY: do not stand up a known-password admin on a fresh deploy.
+    # Disabled by default; bootstrap fail-fasts if enabled without a real password.
+    auto_create_admin: bool = False
     admin_email: str = "admin@pico.local"
-    admin_password: str = "admin"
+    admin_password: str = ""
     registration_enabled: bool = True
     email_credentials_token: str = ""
 

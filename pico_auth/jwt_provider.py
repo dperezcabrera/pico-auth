@@ -1,6 +1,7 @@
 """JWT token creation and validation with auto-generated RSA or ML-DSA keys."""
 
 import base64
+import hashlib
 import json
 import logging
 import time
@@ -159,6 +160,20 @@ class JWTProvider:
     def create_refresh_token(self) -> str:
         return uuid4().hex
 
+    def token_hash_key(self) -> bytes:
+        """Server-side secret for keyed hashing of stored tokens (HMAC).
+
+        Derived from the already-loaded private signing key material so no new
+        secret needs to be stored. Stable across restarts because the key files
+        persist on disk.
+        """
+        if self._settings.is_pqc:
+            material = self._secret_key
+        else:
+            material = self._private_key.encode()
+        # Domain-separate so this key is never confused with the signing key.
+        return hashlib.sha256(b"pico-auth/token-hash-key/v1:" + material).digest()
+
     def decode_access_token(self, token: str) -> dict:
         if self._settings.is_pqc:
             return self._decode_pqc_token(token)
@@ -169,6 +184,8 @@ class JWTProvider:
             algorithms=[self._algorithm],
             audience=self._settings.audience,
             issuer=self._settings.issuer,
+            # SECURITY: reject tokens that omit `exp` so they cannot live forever.
+            options={"require": ["exp"]},
         )
 
     def _decode_pqc_token(self, token: str) -> dict:
@@ -186,7 +203,11 @@ class JWTProvider:
             raise ValueError("Invalid signature")
 
         claims = json.loads(_b64url_decode(payload_b64))
-        if claims.get("exp") and time.time() > claims["exp"]:
+        # SECURITY: `exp` is mandatory; a token without it must be rejected
+        # rather than treated as non-expiring.
+        if "exp" not in claims:
+            raise ValueError("Token missing required 'exp' claim")
+        if time.time() > claims["exp"]:
             raise ValueError("Token has expired")
         if claims.get("iss") != self._settings.issuer:
             raise ValueError("Invalid issuer")

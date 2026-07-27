@@ -1,5 +1,6 @@
 """REST API controllers for auth endpoints."""
 
+import hmac
 from typing import Any
 
 from fastapi import Body, Header, HTTPException
@@ -368,6 +369,12 @@ class EmailCredentialController:
         self._token = settings.email_credentials_token
 
     def _verify(self, authorization: str) -> None:
+        # SECURITY: These endpoints return IMAP/SMTP passwords in cleartext and
+        # are gated only by a static bearer token (the `@allow_anonymous` decorator
+        # bypasses the JWT/role middleware). They expose secrets and SHOULD be
+        # additionally role-gated (e.g. @requires_role) once the static-token flow
+        # can be migrated to JWT-based service auth. Until then, the token compare
+        # below uses hmac.compare_digest to avoid timing side-channels.
         if not self._token:
             raise HTTPException(
                 status_code=403,
@@ -375,7 +382,8 @@ class EmailCredentialController:
             )
         if not authorization.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Missing Bearer token")
-        if authorization.removeprefix("Bearer ") != self._token:
+        presented = authorization.removeprefix("Bearer ")
+        if not hmac.compare_digest(presented, self._token):
             raise HTTPException(status_code=401, detail="Invalid service token")
 
     @post("")

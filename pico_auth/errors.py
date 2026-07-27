@@ -37,11 +37,6 @@ class UserNotFoundError(AuthError):
         super().__init__(f"User not found: {user_id}")
 
 
-class InsufficientPermissionsError(AuthError):
-    def __init__(self):
-        super().__init__("Insufficient permissions")
-
-
 class UserSuspendedError(AuthError):
     def __init__(self):
         super().__init__("User account is suspended")

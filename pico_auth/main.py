@@ -36,6 +36,13 @@ async def main() -> None:
     # Auto-create admin user if configured
     settings = container.get(AuthSettings)
     if settings.auto_create_admin:
+        # SECURITY: fail-fast rather than bootstrap a known/weak-password admin.
+        if not settings.admin_password or settings.admin_password == "admin":
+            raise RuntimeError(
+                "auto_create_admin is enabled but admin_password is empty or left at "
+                "the insecure default ('admin'). Set a strong auth.admin_password "
+                "(e.g. via env AUTH_ADMIN_PASSWORD) or disable auth.auto_create_admin."
+            )
         service = container.get(AuthService)
         await service.ensure_admin(settings.admin_email, settings.admin_password)
         logger.info("Admin user ensured: %s", settings.admin_email)
