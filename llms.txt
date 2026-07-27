@@ -1,0 +1,40 @@
+# pico-auth
+
+> Minimal JWT auth server for the Pico ecosystem
+
+Install: `pip install pico-auth`. Import surface: `from pico_auth import ...`.
+
+## Public API
+
+- `AuthController`
+- `AuthError`
+- `AuthSettings`
+- `AuthService`
+- `Group`
+- `GroupController`
+- `GroupMember`
+- `GroupRepository`
+- `GroupService`
+- `JWTProvider`
+- `LocalJWKSProvider`
+- `OIDCController`
+- `PasswordService`
+- `RefreshToken`
+- `RefreshTokenRepository`
+- `User`
+- `UserRepository`
+- `create_tables`
+
+## Docs
+
+- docs/CHANGELOG.md
+- docs/api-endpoints.md
+- docs/api-reference.md
+- docs/architecture.md
+- docs/auth-flow.md
+- docs/configuration.md
+- docs/docker-e2e-test.md
+- docs/ecosystem.md
+- docs/faq.md
+- docs/getting-started.md
+- docs/skills.md
