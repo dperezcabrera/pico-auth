@@ -1,7 +1,7 @@
 """End-to-end tests for pico-auth -- full HTTP flows."""
 
+import jwt
 import pytest
-from jose import jwt
 
 API = "/api/v1/auth"
 GROUPS_API = "/api/v1/groups"
@@ -577,7 +577,7 @@ class TestGroups:
         )
         access_token = login_resp.json()["access_token"]
         # Decode and check groups claim
-        claims = jwt.get_unverified_claims(access_token)
+        claims = jwt.decode(access_token, options={"verify_signature": False})
         assert group_id in claims["groups"]
 
     async def test_viewer_cannot_create_group(self, client, container):
