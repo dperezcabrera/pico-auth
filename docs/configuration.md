@@ -78,7 +78,7 @@ The `algorithm` field determines which signing algorithm `JWTProvider` uses:
 
 | Algorithm | Key Type | Key Files | Requires |
 |-----------|----------|-----------|----------|
-| `RS256` | RSA 2048-bit | `private.pem`, `public.pem` | python-jose |
+| `RS256` | RSA 2048-bit | `private.pem`, `public.pem` | PyJWT |
 | `ML-DSA-65` | ML-DSA (NIST Level 3) | `pqc_secret.bin`, `pqc_public.bin` | liboqs-python (`pqc` extra) |
 | `ML-DSA-87` | ML-DSA (NIST Level 5) | `pqc_secret.bin`, `pqc_public.bin` | liboqs-python (`pqc` extra) |
 

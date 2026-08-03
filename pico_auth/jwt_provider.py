@@ -8,11 +8,11 @@ import time
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
-from jose import jwt
 from pico_ioc import component
 
 from pico_auth.config import AuthSettings

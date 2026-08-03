@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- JWT signing migrated from `python-jose` (unmaintained) to `PyJWT[crypto] >= 2.8`, aligning with pico-server-auth 0.2.0 and pico-client-auth 0.5.0. Tokens, claims and JWKS are unchanged: tokens issued before the migration keep validating.
+
+---
+
 ## v0.3.0 — Post-Quantum (ML-DSA) Support, Email Credentials & Admin Management (2026-06-10)
 
 ### Added
