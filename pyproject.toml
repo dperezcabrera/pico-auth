@@ -24,11 +24,11 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 dependencies = [
-    "pico-ioc[yaml]>=2.2.4",
+    "pico-ioc[yaml]>=2.3.3",
     "pico-boot>=0.1.1",
     "pico-fastapi>=0.3.0",
-    "pico-sqlalchemy>=0.3.0",
-    "pico-client-auth>=0.4.1",
+    "pico-sqlalchemy>=0.5.1",
+    "pico-client-auth>=0.6.0",
     "PyJWT[crypto]>=2.8",
     "bcrypt>=5.0",
     "aiosqlite>=0.22",
