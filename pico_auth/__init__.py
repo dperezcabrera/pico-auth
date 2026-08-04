@@ -1,6 +1,5 @@
 """pico-auth -- minimal JWT auth server for the pico ecosystem."""
 
-import pico_auth.local_auth_configurer as local_auth_configurer  # noqa: F401 — patches AuthFastapiConfigurer
 from pico_auth.config import AuthSettings
 from pico_auth.errors import AuthError
 from pico_auth.jwt_provider import JWTProvider
