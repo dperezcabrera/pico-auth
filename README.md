@@ -1,6 +1,5 @@
 # Pico-Auth
 
-[![PyPI](https://img.shields.io/pypi/v/pico-auth.svg)](https://pypi.org/project/pico-auth/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/dperezcabrera/pico-auth)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![CI (tox matrix)](https://github.com/dperezcabrera/pico-auth/actions/workflows/ci.yml/badge.svg)
