@@ -1,28 +1,23 @@
 """Local JWKS provider that reads keys directly from JWTProvider."""
 
-from pico_client_auth.config import AuthClientSettings
-from pico_client_auth.jwks_client import JWKSClient
+from pico_client_auth import JWKSClient
 from pico_ioc import component
 
 from pico_auth.jwt_provider import JWTProvider
 
 
 @component(name=JWKSClient, primary=True)
-class LocalJWKSProvider(JWKSClient):
-    """JWKS provider that avoids HTTP by reading keys from the local JWTProvider.
+class LocalJWKSProvider:
+    """Serves this server's own keys, so validation never calls its own endpoint.
 
-    Registered with ``name=JWKSClient`` so that pico-ioc replaces the default
-    ``JWKSClient`` (which fetches keys over HTTP) when resolving that type.
+    ``JWKSClient`` is the container key, not a base class: providing
+    ``get_key`` is the whole contract.
     """
 
-    def __init__(self, settings: AuthClientSettings, jwt_provider: JWTProvider):
-        self._settings = settings
-        self._endpoint = ""
-        self._fetched_at = 0.0
-        jwks = jwt_provider.jwks()
-        self._keys = {k["kid"]: k for k in jwks.get("keys", [])}
+    def __init__(self, jwt_provider: JWTProvider):
+        self._keys = {k["kid"]: k for k in jwt_provider.jwks().get("keys", [])}
 
     async def get_key(self, kid: str) -> dict:
-        if kid in self._keys:
-            return self._keys[kid]
-        raise KeyError(f"Key ID '{kid}' not found in local JWKS")
+        if kid not in self._keys:
+            raise KeyError(f"Key ID '{kid}' not found in local JWKS")
+        return self._keys[kid]
