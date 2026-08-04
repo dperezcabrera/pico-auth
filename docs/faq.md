@@ -33,7 +33,7 @@ Each refresh token can only be used once. When you call `/refresh`, the old toke
 
 ## How do I create the first admin user?
 
-By default, `auto_create_admin: true` creates an admin user on startup. Set `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD` environment variables for production.
+Set `auth.auto_create_admin: true` together with a real `auth.admin_password`; startup fails fast rather than stand up an account with a known password. In production, point those fields at `${ENV:AUTH_ADMIN_EMAIL}` and `${ENV:AUTH_ADMIN_PASSWORD}` in your `application.yaml`.
 
 ## What roles are available?
 
