@@ -154,12 +154,16 @@ fastapi:
   version: "0.2.0"
 ```
 
-Environment variable override example:
+Environment values are injected through `${ENV:VAR}` in the YAML — settings bind from the config tree, so there is no implicit uppercase override:
+
+```yaml
+auth:
+  issuer: "${ENV:AUTH_ISSUER}"
+  admin_password: "${ENV:AUTH_ADMIN_PASSWORD}"
+```
+
 ```bash
 AUTH_ISSUER=https://auth.myapp.com AUTH_ADMIN_PASSWORD=strong-password python -m pico_auth.main
-
-# With ML-DSA-65 post-quantum algorithm
-AUTH_ALGORITHM=ML-DSA-65 python -m pico_auth.main
 ```
 
 ---

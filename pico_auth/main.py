@@ -6,7 +6,7 @@ import logging
 import uvicorn
 from fastapi import FastAPI
 from pico_boot import init
-from pico_ioc import EnvSource, YamlTreeSource, configuration
+from pico_ioc import YamlTreeSource, configuration
 from pico_sqlalchemy import SessionManager
 
 from pico_auth.config import AuthSettings
@@ -17,11 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 def create_container(config_path: str = "application.yaml"):
-    """Bootstrap the pico-ioc container with all auth components."""
-    config = configuration(
-        YamlTreeSource(config_path),
-        EnvSource(),
-    )
+    """Bootstrap the pico-ioc container with all auth components.
+
+    Every settings class here maps from the config tree, so environment
+    values arrive through ``${ENV:VAR}`` inside the YAML. A flat EnvSource
+    would never be consulted.
+    """
+    config = configuration(YamlTreeSource(config_path))
     return init(modules=["pico_auth"], config=config)
 
 

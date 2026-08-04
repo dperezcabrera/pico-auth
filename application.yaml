@@ -5,9 +5,12 @@ auth:
   issuer: "http://localhost:8100"
   audience: "pico-bot"
   algorithm: "RS256"
-  auto_create_admin: true
+  # Bootstrapping an admin needs a real password: startup fails fast rather
+  # than stand up a known-credential account. Mount your own application.yaml
+  # (or edit this one) with auto_create_admin: true and a strong password.
+  auto_create_admin: false
   admin_email: "admin@pico.local"
-  admin_password: "admin"
+  admin_password: ""
   registration_enabled: true
 
 database:

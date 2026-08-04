@@ -36,15 +36,16 @@ fastapi:
 
 ## Environment Variable Overrides
 
-Every setting can be overridden with environment variables using uppercase and underscores:
+Settings are bound from the configuration tree, so environment values enter through `${ENV:VAR}` interpolation **inside the YAML** — there is no implicit `AUTH_ISSUER`-style override. Reference the variables you want to inject:
 
-| Setting | Environment Variable |
-|---------|---------------------|
-| `auth.issuer` | `AUTH_ISSUER` |
-| `auth.algorithm` | `AUTH_ALGORITHM` |
-| `auth.admin_password` | `AUTH_ADMIN_PASSWORD` |
-| `auth.access_token_expire_minutes` | `AUTH_ACCESS_TOKEN_EXPIRE_MINUTES` |
-| `database.url` | `DATABASE_URL` |
+```yaml
+auth:
+  issuer: "${ENV:AUTH_ISSUER}"
+  admin_password: "${ENV:AUTH_ADMIN_PASSWORD}"
+
+database:
+  url: "${ENV:DATABASE_URL}"
+```
 
 ### Example
 
@@ -54,6 +55,8 @@ AUTH_ADMIN_PASSWORD=strong-random-password \
 DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/auth \
 python -m pico_auth.main
 ```
+
+A referenced variable that is not set stops startup with `Missing ENV var AUTH_ADMIN_PASSWORD` (pico-ioc >= 2.5.1); earlier versions silently fell back to the field default.
 
 ## AuthSettings Dataclass
 
@@ -84,9 +87,9 @@ The `algorithm` field determines which signing algorithm `JWTProvider` uses:
 
 ## Production Recommendations
 
-- Set `AUTH_ADMIN_PASSWORD` to a strong random value
-- Set `AUTH_ISSUER` to your public URL
-- Use PostgreSQL instead of SQLite for `DATABASE_URL`
-- Set `AUTH_AUTO_CREATE_ADMIN=false` after first deployment
-- Store keys on a persistent volume (`AUTH_DATA_DIR`)
-- For post-quantum readiness, set `AUTH_ALGORITHM=ML-DSA-65` and install the `pqc` extra
+- Point `auth.admin_password` at `${ENV:AUTH_ADMIN_PASSWORD}` and give it a strong random value
+- Set `auth.issuer` to your public URL
+- Use PostgreSQL instead of SQLite for `database.url`
+- Set `auth.auto_create_admin: false` after first deployment
+- Store keys on a persistent volume (`auth.data_dir`)
+- For post-quantum readiness, set `auth.algorithm: ML-DSA-65` and install the `pqc` extra
