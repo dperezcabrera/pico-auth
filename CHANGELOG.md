@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ## [Unreleased]
 
+### Changed
+
+- `LocalJWKSProvider` no longer subclasses `JWKSClient`. The container key is a lookup token, so the override needs nothing but `get_key`; the inherited HTTP fetcher and the private attributes that were mirrored to keep it quiet (`_settings`, `_endpoint`, `_fetched_at`) are gone. Requires `pico-client-auth >= 0.7.0`, which exports the key from its facade.
+
 ## v0.3.1 — PyJWT & dependency floors (2026-08-04)
 
 ### Changed
