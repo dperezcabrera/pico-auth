@@ -6,7 +6,7 @@ RS256 (asymmetric) allows other services to verify tokens using the public key w
 
 ## What about post-quantum algorithms?
 
-Pico-Auth supports ML-DSA-65 (NIST Level 3) and ML-DSA-87 (NIST Level 5) as alternatives to RS256. Set `AUTH_ALGORITHM=ML-DSA-65` and install the `pqc` extra (`pip install pico-auth[pqc]`). ML-DSA uses `liboqs-python` for signing and verification.
+Pico-Auth supports ML-DSA-65 (NIST Level 3) and ML-DSA-87 (NIST Level 5) as alternatives to RS256. Set `AUTH_ALGORITHM=ML-DSA-65` and install the `pqc` extra (`pip install -e ".[pqc]"` from a checkout). ML-DSA uses `liboqs-python` for signing and verification.
 
 ## Where are the keys stored?
 
