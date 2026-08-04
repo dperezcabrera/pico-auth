@@ -80,3 +80,7 @@ dmypy.json
 auth.db
 pico_client_auth_wheel/
 pico_auth/_version.py
+
+# local developer scratch (pyenv pin, one-off helpers)
+.python-version
+fix_commits.sh

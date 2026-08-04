@@ -9,9 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ## [Unreleased]
 
+## v0.3.1 — PyJWT & dependency floors (2026-08-04)
+
 ### Changed
 
 - JWT signing migrated from `python-jose` (unmaintained) to `PyJWT[crypto] >= 2.8`, aligning with pico-server-auth 0.2.0 and pico-client-auth 0.5.0. Tokens, claims and JWKS are unchanged: tokens issued before the migration keep validating.
+- Dependency floors raised to the versions that carry fixes this application depends on: `pico-client-auth >= 0.6.0` (mandatory `exp`, `HS*` rejection, fail-closed revocation), `pico-sqlalchemy >= 0.5.1` (DDL no longer hangs under uvicorn) and `pico-ioc >= 2.3.3` (idempotent container shutdown).
+
+### Fixed
+
+- Release builds no longer publish a `.post0` version. The generated `pico_auth/_version.py` was tracked in git, so setuptools-scm rewriting it during the build left the tree dirty and the `post-release` scheme appended `.post0` at distance zero.
 
 ---
 
