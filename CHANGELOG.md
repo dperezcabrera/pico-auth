@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ## [Unreleased]
 
+### Changed
+
+- The test suite no longer depends on pico-boot plugin auto-discovery: it adopts pico-testing (>= 0.2.0, like the rest of the fleet) and lists `pico_sqlalchemy`, `pico_fastapi` and `pico_client_auth` explicitly. Installing pico-testing next to pico-auth used to break 83 tests, because its isolation fixture disables auto-discovery and the fixtures relied on it.
+
+### Added
+
+- CodeQL analysis on push, pull request and weekly, matching the rest of the fleet.
+
 ## v0.3.2 — Container image & working env configuration (2026-08-05)
 
 ### Fixed
