@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 ## [Unreleased]
 
+## v0.3.2 — Container image & working env configuration (2026-08-05)
+
 ### Fixed
 
 - Environment configuration actually works. `main.py` passed an `EnvSource` alongside the YAML, but every settings class binds with `mapping="tree"` and pico-ioc keeps flat and tree sources in separate buckets, so the flat source was never consulted: `AUTH_ADMIN_PASSWORD` and friends silently did nothing. Values now arrive through `${ENV:VAR}` interpolation inside the YAML, and the README, FAQ and configuration reference describe the mechanism that exists. Requires pico-ioc >= 2.5.1, where an unset variable reports itself instead of falling back to defaults.
@@ -17,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.h
 
 - Ships as a container image. `Dockerfile` installs from the source tree instead of PyPI (the package is no longer published there, so the image was pinned to a stale release), takes the version as a build argument, and gains a healthcheck; `publish-image.yml` pushes to `ghcr.io/dperezcabrera/pico-auth` on release.
 - The bundled `application.yaml` no longer enables `auto_create_admin` with the password `admin`, the exact combination the bootstrap fail-fast rejects — the image could not start as shipped.
-
 - `LocalJWKSProvider` no longer subclasses `JWKSClient`. The container key is a lookup token, so the override needs nothing but `get_key`; the inherited HTTP fetcher and the private attributes that were mirrored to keep it quiet (`_settings`, `_endpoint`, `_fetched_at`) are gone. Requires `pico-client-auth >= 0.7.0`, which exports the key from its facade.
 
 ## v0.3.1 — PyJWT & dependency floors (2026-08-04)

@@ -40,6 +40,18 @@ Pico-Auth uses the full Pico stack with dependency injection:
 
 ## Installation
 
+pico-auth is a deployable application, not a library: it ships as a container image, not on PyPI.
+
+```bash
+docker run -p 8100:8100 \
+  -v ./application.yaml:/app/application.yaml:ro \
+  -e AUTH_ISSUER=https://auth.example.com \
+  -e AUTH_ADMIN_PASSWORD=a-strong-random-password \
+  ghcr.io/dperezcabrera/pico-auth:latest
+```
+
+Mount your own `application.yaml` and reference the environment with `${ENV:VAR}` (see [Configuration](./docs/configuration.md)). From a checkout:
+
 ```bash
 pip install -e ".[dev]"
 
@@ -58,7 +70,7 @@ python -m pico_auth.main
 ```
 
 The server starts on `http://localhost:8100` with:
-- An auto-created admin user (`admin@pico.local` / `admin`)
+- No admin user: set `auth.auto_create_admin: true` **and** a real `auth.admin_password` to bootstrap one. Startup fails fast rather than stand up a known-password account.
 - SQLite database at `auth.db`
 - Auto-generated keys at `~/.pico-auth/` (RSA PEM or ML-DSA binary, depending on algorithm)
 
