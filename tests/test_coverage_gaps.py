@@ -2,8 +2,6 @@
 
 import pytest
 from fastapi import FastAPI
-from pico_boot import init
-from pico_ioc import DictSource, configuration
 
 from pico_auth.passwords import PasswordService
 from pico_auth.service import AuthService
@@ -547,43 +545,40 @@ class TestAdminCreateUserDuplicate:
 
 @pytest.mark.asyncio
 class TestEmailCredsUnconfigured:
-    async def test_no_token_configured_returns_403(self, tmp_path):
+    async def test_no_token_configured_returns_403(self, pico_stack, tmp_path):
         """When email_credentials_token is empty, all requests get 403."""
         db_path = tmp_path / "test.db"
         auth_data = tmp_path / "auth-keys"
-        config = configuration(
-            DictSource(
-                {
-                    "auth": {
-                        "data_dir": str(auth_data),
-                        "access_token_expire_minutes": 15,
-                        "refresh_token_expire_days": 7,
-                        "issuer": "http://test",
-                        "audience": "pico-bot",
-                        "auto_create_admin": False,
-                        "admin_email": "",
-                        "admin_password": "",
-                        "registration_enabled": True,
-                        "email_credentials_token": "",
-                    },
-                    "database": {
-                        "url": f"sqlite+aiosqlite:///{db_path}",
-                        "echo": False,
-                    },
-                    "fastapi": {"title": "Test", "version": "0.1.0"},
-                    "auth_client": {
-                        "enabled": True,
-                        "issuer": "http://test",
-                        "audience": "pico-bot",
-                    },
-                }
-            )
-        )
         from pico_sqlalchemy import SessionManager
 
         from pico_auth.schema import create_tables
 
-        container = init(modules=["pico_auth"], config=config)
+        container = pico_stack(
+            {
+                "auth": {
+                    "data_dir": str(auth_data),
+                    "access_token_expire_minutes": 15,
+                    "refresh_token_expire_days": 7,
+                    "issuer": "http://test",
+                    "audience": "pico-bot",
+                    "auto_create_admin": False,
+                    "admin_email": "",
+                    "admin_password": "",
+                    "registration_enabled": True,
+                    "email_credentials_token": "",
+                },
+                "database": {
+                    "url": f"sqlite+aiosqlite:///{db_path}",
+                    "echo": False,
+                },
+                "fastapi": {"title": "Test", "version": "0.1.0"},
+                "auth_client": {
+                    "enabled": True,
+                    "issuer": "http://test",
+                    "audience": "pico-bot",
+                },
+            }
+        )
         sm = container.get(SessionManager)
         await create_tables(sm)
         app = container.get(FastAPI)
@@ -623,40 +618,36 @@ class TestPasswordService:
 
 @pytest.mark.asyncio
 class TestJWTProviderKeyLoading:
-    async def test_loads_existing_keys(self, tmp_path):
+    async def test_loads_existing_keys(self, pico_stack, tmp_path):
         """Second init should load keys from files (not regenerate)."""
 
-        config = configuration(
-            DictSource(
-                {
-                    "auth": {
-                        "data_dir": str(tmp_path / "keys"),
-                        "access_token_expire_minutes": 15,
-                        "refresh_token_expire_days": 7,
-                        "issuer": "http://test",
-                        "audience": "pico-bot",
-                        "auto_create_admin": False,
-                        "admin_email": "",
-                        "admin_password": "",
-                    },
-                    "database": {"url": "sqlite+aiosqlite:///unused.db", "echo": False},
-                    "fastapi": {"title": "Test", "version": "0.1.0"},
-                    "auth_client": {
-                        "enabled": True,
-                        "issuer": "http://test",
-                        "audience": "pico-bot",
-                    },
-                }
-            )
-        )
-        container1 = init(modules=["pico_auth"], config=config)
+        config = {
+            "auth": {
+                "data_dir": str(tmp_path / "keys"),
+                "access_token_expire_minutes": 15,
+                "refresh_token_expire_days": 7,
+                "issuer": "http://test",
+                "audience": "pico-bot",
+                "auto_create_admin": False,
+                "admin_email": "",
+                "admin_password": "",
+            },
+            "database": {"url": "sqlite+aiosqlite:///unused.db", "echo": False},
+            "fastapi": {"title": "Test", "version": "0.1.0"},
+            "auth_client": {
+                "enabled": True,
+                "issuer": "http://test",
+                "audience": "pico-bot",
+            },
+        }
+        container1 = pico_stack(config)
         from pico_auth.jwt_provider import JWTProvider
 
         provider1 = container1.get(JWTProvider)
         pub1 = provider1._public_key
 
         # Second init reads from files
-        container2 = init(modules=["pico_auth"], config=config)
+        container2 = pico_stack(config)
         provider2 = container2.get(JWTProvider)
         pub2 = provider2._public_key
 
