@@ -11,8 +11,8 @@ jobs:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: pip
@@ -30,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -46,7 +46,7 @@ jobs:
           pip install tox
 
       - name: Cache tox environments
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .tox
           key: tox-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml', 'tox.ini') }}
@@ -61,7 +61,7 @@ jobs:
           ls -la .coverage.${{ matrix.python-version }}
 
       - name: Upload .coverage artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.python-version }}
           path: .coverage.${{ matrix.python-version }}
@@ -74,10 +74,10 @@ jobs:
     needs: tests
     steps:
       - name: Checkout (for repo context)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: coverage-reports
 
@@ -96,14 +96,14 @@ jobs:
           coverage html -d htmlcov --rcfile=.coveragerc
 
       - name: Upload combined coverage XML
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-xml
           path: coverage.xml
           if-no-files-found: error
 
       - name: Upload HTML coverage report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-html
           path: htmlcov
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload to Codecov
         if: always() && !cancelled()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
           files: coverage.xml
